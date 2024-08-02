@@ -13,6 +13,8 @@ from pandapower.pypower.ppoption import ppoption
 from scipy.sparse import csr_matrix as sparse
 
 from pandapower.auxiliary import OPFNotConverged, _clean_up, _add_auxiliary_elements
+from pandapower.auxiliary import ppException, _clean_up, _add_auxiliary_elements
+from pandapower.convexpower.conv_opf import conv_opf
 from pandapower.pypower.idx_bus import VM
 from pandapower.pypower.opf import opf
 from pandapower.pypower.printpf import printpf
@@ -59,20 +61,26 @@ def _optimal_powerflow(net, verbose, suppress_warnings, **kwargs):
     if len(net.dcline) > 0:
         ppci = add_userfcn(ppci, 'formulation', _add_dcline_constraints, args=net)
 
+    routine = opf
+    # if a convex relaxation is active, select a different routine
+    relaxation = net["_options"]["relaxation"]
+    if relaxation is not None:
+        routine = conv_opf
+
     if init == "pf":
         ppci = _run_pf_before_opf(net, ppci)
     if suppress_warnings:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            result = opf(ppci, ppopt)
+            result = routine(ppci, ppopt)
     else:
-        result = opf(ppci, ppopt)
-#    net["_ppc_opf"] = result
+        result = routine(ppci, ppopt)
+    #    net["_ppc_opf"] = result
 
     if verbose:
         ppopt['OUT_ALL'] = 1
         printpf(baseMVA=result["baseMVA"], bus=result["bus"], gen=result["gen"],
-                branch=result["branch"],  f=result["f"],  success=result["success"],
+                branch=result["branch"], f=result["f"], success=result["success"],
                 et=result["et"], fd=stdout, ppopt=ppopt)
 
     if not result["success"]:
@@ -82,7 +90,7 @@ def _optimal_powerflow(net, verbose, suppress_warnings, **kwargs):
     mode = net["_options"]["mode"]
     result = _copy_results_ppci_to_ppc(result, ppc, mode=mode)
 
-#    net["_ppc_opf"] = result
+    #    net["_ppc_opf"] = result
     net["OPF_converged"] = True
     _extract_results(net, result)
     _clean_up(net)

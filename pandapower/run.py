@@ -8,7 +8,7 @@ import inspect
 
 from pandapower.auxiliary import _check_bus_index_and_print_warning_if_high, \
     _check_gen_index_and_print_warning_if_high, _init_runpp_options, _init_rundcopp_options, \
-    _init_rundcpp_options, _init_runopp_options, _internal_stored
+    _init_rundcpp_options, _init_runopp_options, _init_runconvopp_options, _internal_stored
 from pandapower.opf.validate_opf_input import _check_necessary_opf_parameters
 from pandapower.powerflow import _powerflow, _recycled_powerflow
 from pandapower.optimal_powerflow import _optimal_powerflow
@@ -531,6 +531,17 @@ def rundcopp(net, verbose=False, check_connectivity=True, suppress_warnings=True
     _init_rundcopp_options(net, check_connectivity=check_connectivity,
                            switch_rx_ratio=switch_rx_ratio, delta=delta,
                            trafo3w_losses=trafo3w_losses, **kwargs)
+    _check_bus_index_and_print_warning_if_high(net)
+    _check_gen_index_and_print_warning_if_high(net)
+    _optimal_powerflow(net, verbose, suppress_warnings, **kwargs)
+
+
+def runconvopp(net, verbose=False, check_connectivity=True, suppress_warnings=True,
+               delta=1e-10, init="flat", numba=True, relaxation="jabr", **kwargs):
+    _init_runconvopp_options(net,
+                             check_connectivity=check_connectivity,
+                             delta=delta, init=init, numba=numba,
+                             relaxation=relaxation, **kwargs)
     _check_bus_index_and_print_warning_if_high(net)
     _check_gen_index_and_print_warning_if_high(net)
     _optimal_powerflow(net, verbose, suppress_warnings, **kwargs)
