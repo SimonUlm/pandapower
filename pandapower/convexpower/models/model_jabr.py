@@ -4,9 +4,9 @@ from typing import Dict
 import scipy.sparse as sparse
 import numpy as np
 
-from pandapower.convexpower.model_components import *
-from pandapower.convexpower.model_opf import ModelOpf
-from pandapower.convexpower.variable_type import VariableType
+from pandapower.convexpower.models.model_components import *
+from pandapower.convexpower.models.model_opf import ModelOpf
+from pandapower.convexpower.types.variable_type import VariableType
 
 
 class ModelJabr:

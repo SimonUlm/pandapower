@@ -9,5 +9,5 @@ class RelaxationType(Enum):
     def from_str(cls, string):
         if string == "jabr":
             return cls.JABR
-        else:
-            return cls.UNKNOWN
+
+        return cls.UNKNOWN

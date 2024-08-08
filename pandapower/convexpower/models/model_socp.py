@@ -1,9 +1,9 @@
 import scipy.sparse as sparse
 import numpy as np
 
-from pandapower.convexpower.model_components import *
-from pandapower.convexpower.model_jabr import ModelJabr
-from pandapower.convexpower.variable_type import VariableType
+from pandapower.convexpower.models.model_components import *
+from pandapower.convexpower.models.model_jabr import ModelJabr
+from pandapower.convexpower.types.variable_type import VariableType
 
 
 class ModelSocp:

@@ -1,13 +1,13 @@
 import warnings
-from typing import Dict, List
+from typing import Dict
 
 import scipy.sparse as sparse
 import numpy as np
 
-from pandapower.convexpower.model_components import *
-from pandapower.convexpower.variable_type import VariableType
+from pandapower.convexpower.models.model_components import *
+from pandapower.convexpower.types.variable_type import VariableType
 from pandapower.pypower.idx_gen import GEN_STATUS
-from pandapower.pypower.makeSbus import _get_Cg, _get_Sload
+from pandapower.pypower.makeSbus import _get_Cg, _get_Sload  # TODO: Think of a better way.
 from pandapower.pypower.makeYbus import makeYbus
 from pandapower.pypower.opf_model import opf_model
 

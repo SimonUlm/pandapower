@@ -9,10 +9,10 @@ from pandapower.pypower.opf_args import opf_args2
 from pandapower.pypower.opf_execute import opf_execute
 from pandapower.pypower.opf_setup import opf_setup
 
-from pandapower.convexpower.model_jabr import ModelJabr
-from pandapower.convexpower.model_opf import ModelOpf
-from pandapower.convexpower.model_socp import ModelSocp
-from pandapower.convexpower.relaxation_type import RelaxationType
+from pandapower.convexpower.models.model_jabr import ModelJabr
+from pandapower.convexpower.models.model_opf import ModelOpf
+from pandapower.convexpower.models.model_socp import ModelSocp
+from pandapower.convexpower.types.relaxation_type import RelaxationType
 
 
 def conv_opf(ppc, ppopt, relaxation_str):
