@@ -61,20 +61,21 @@ def _optimal_powerflow(net, verbose, suppress_warnings, **kwargs):
     if len(net.dcline) > 0:
         ppci = add_userfcn(ppci, 'formulation', _add_dcline_constraints, args=net)
 
-    routine = opf
-    # if a convex relaxation is active, select a different routine
+    # select a different routine, depending on whether a convex relaxation should be applied
     relaxation = net["_options"]["relaxation"]
-    if relaxation is not None:
-        routine = conv_opf
+    if relaxation is None:
+        def routine(_ppci, _ppopt, _relaxation): return opf(_ppci, _ppopt)
+    else:
+        def routine(_ppci, _ppopt, _relaxation): return conv_opf(_ppci, _ppopt, relaxation)
 
     if init == "pf":
         ppci = _run_pf_before_opf(net, ppci)
     if suppress_warnings:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            result = routine(ppci, ppopt)
+            result = routine(ppci, ppopt, relaxation)
     else:
-        result = routine(ppci, ppopt)
+        result = routine(ppci, ppopt, relaxation)
     #    net["_ppc_opf"] = result
 
     if verbose:
