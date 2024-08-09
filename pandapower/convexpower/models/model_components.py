@@ -15,6 +15,8 @@ class VariableSet:
                  size: int,
                  initial_values_data: np.ndarray,
                  initial_values_allocated_memory: np.ndarray = None):
+        # TODO: size should be an argument
+        # TODO: rename initial_values into variables or values
         assert size == np.size(initial_values_data)
         self.type = var_type
         self.size = size
@@ -91,11 +93,13 @@ class LinearInequalityConstraints:
 
 
 class SocpConstraintsWithoutConstants:
+    nof_constraints: int
     matrices: List[sparse.csr_matrix]
     vectors: List[sparse.csr_matrix]
 
     def __init__(self, matrices: List[sparse.csr_matrix], vectors: List[sparse.csr_matrix]):
         assert len(matrices) == len(vectors)
+        self.nof_constraints = len(matrices)
         dim = matrices[0].shape[1]
         for i in range(len(matrices)):
             assert matrices[i].shape[1] == dim

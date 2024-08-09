@@ -1,5 +1,6 @@
 from time import perf_counter
 
+import numpy as np
 from numpy import zeros, c_, shape
 from pandapower.pypower.idx_brch import MU_ANGMAX
 from pandapower.pypower.idx_bus import MU_VMIN
@@ -12,7 +13,10 @@ from pandapower.pypower.opf_setup import opf_setup
 from pandapower.convexpower.models.model_jabr import ModelJabr
 from pandapower.convexpower.models.model_opf import ModelOpf
 from pandapower.convexpower.models.model_socp import ModelSocp
+from pandapower.convexpower.recovery.jabr_to_opf import jabr_to_opf
+from pandapower.convexpower.socp_execute import socp_execute
 from pandapower.convexpower.types.relaxation_type import RelaxationType
+from pandapower.convexpower.types.optimization_type import OptimizationType
 
 
 def conv_opf(ppc, ppopt, relaxation_str):
@@ -43,21 +47,42 @@ def conv_opf(ppc, ppopt, relaxation_str):
     relaxation_type = RelaxationType.from_str(relaxation_str)
     assert relaxation_type is not RelaxationType.UNKNOWN
 
+    # initialize
+    x = None
+    opt_model = None
+    opt_type = OptimizationType.UNKNOWN
+
     # apply relaxation
     if relaxation_type is RelaxationType.JABR:
         jabr = ModelJabr.from_model_opf(model)
-        socp = ModelSocp.from_jabr(jabr)
+        opt_model = ModelSocp.from_jabr(jabr)
+        opt_type = OptimizationType.SOCP
+    else:
+        assert False
+
+    # execute the relaxed OPF
+    assert opt_model is not None
+    if opt_type is OptimizationType.SOCP:
+        x = socp_execute(opt_model)
     else:
         assert False
 
     # execute the OPF
-    results, success, raw = opf_execute(om, ppopt)
+    # results, success, raw = opf_execute(om, ppopt)
+
+    # recover solution
+    if relaxation_type is RelaxationType.JABR:
+        np.copyto(jabr.initial_values, x.flatten())
+        variable_sets, variables = jabr_to_opf(jabr)
+    else:
+        assert False
 
     # finish preparing output
     et = perf_counter() - t0
 
-    results['et'] = et
-    results['success'] = success
-    results['raw'] = raw
+    # results['et'] = et
+    # results['success'] = success
+    # results['raw'] = raw
 
+    assert False
     return results
