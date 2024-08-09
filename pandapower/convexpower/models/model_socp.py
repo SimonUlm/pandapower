@@ -41,7 +41,7 @@ class ModelSocp:
         # combine
         matrix = sparse.vstack((ub_matrix,
                                 lb_matrix), 'csr')
-        vector = np.concatenate((ub_vector, lb_vector))
+        vector = np.concatenate((ub_vector, -lb_vector))
         self.linear_inequality_constraints = LinearInequalityConstraints(matrix, vector)
 
     @classmethod
