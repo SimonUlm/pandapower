@@ -10,13 +10,12 @@ from pandapower.convexpower.types.variable_type import VariableType
 
 
 class ModelJabr:
-    box_constraint_sets: Dict[VariableType, BoxConstraintSet]  # erst bei socp raushauen
+    box_constraint_sets: Dict[VariableType, BoxConstraintSet]
     cjk_indices_matrix: sparse.coo_matrix
     initial_values: np.ndarray
     hermitian_equalities: LinearEqualityConstraints
     linear_cost: np.ndarray
     power_flow_equalities: LinearEqualityConstraints
-    # linear_inequality_constraints: LinearInequalityConstraints, erst bei socp
     nof_variables: int
     socp_constraints: SocpConstraintsWithoutConstants
     variable_sets: Dict[VariableType, VariableSet]
@@ -109,49 +108,31 @@ class ModelJabr:
         return ending_index
 
     def _add_pg_box_constraints(self,
-                                opf: ModelOpf,
-                                starting_index: int,
-                                lb_memory: np.ndarray,
-                                ub_memory: np.ndarray) -> int:
-        ending_index = starting_index + opf.variable_sets[VariableType.PG].size
+                                opf: ModelOpf):
         box_set = BoxConstraintSet(VariableType.PG,
                                    opf.variable_sets[VariableType.PG].size,
                                    opf.box_constraint_sets[VariableType.PG].lower_bounds,
                                    opf.box_constraint_sets[VariableType.PG].upper_bounds,
-                                   lb_memory[starting_index:ending_index],
-                                   ub_memory[starting_index:ending_index])
+                                   opf.box_constraint_sets[VariableType.PG].equalities)
         self.box_constraint_sets[VariableType.PG] = box_set
-        return ending_index
 
     def _add_qg_box_constraints(self,
-                                opf: ModelOpf,
-                                starting_index: int,
-                                lb_memory: np.ndarray,
-                                ub_memory: np.ndarray) -> int:
-        ending_index = starting_index + opf.variable_sets[VariableType.QG].size
+                                opf: ModelOpf):
         box_set = BoxConstraintSet(VariableType.QG,
                                    opf.variable_sets[VariableType.QG].size,
                                    opf.box_constraint_sets[VariableType.QG].lower_bounds,
                                    opf.box_constraint_sets[VariableType.QG].upper_bounds,
-                                   lb_memory[starting_index:ending_index],
-                                   ub_memory[starting_index:ending_index])
+                                   opf.box_constraint_sets[VariableType.QG].equalities)
         self.box_constraint_sets[VariableType.QG] = box_set
-        return ending_index
 
     def _add_cjj_box_constraints(self,
-                                 opf: ModelOpf,
-                                 starting_index: int,
-                                 lb_memory: np.ndarray,
-                                 ub_memory: np.ndarray) -> int:
-        ending_index = starting_index + opf.nof_nodes
+                                 opf: ModelOpf):
         box_set = BoxConstraintSet(VariableType.CJJ,
                                    opf.nof_nodes,
                                    opf.box_constraint_sets[VariableType.UMAG].lower_bounds ** 2,
                                    opf.box_constraint_sets[VariableType.UMAG].upper_bounds ** 2,
-                                   lb_memory[starting_index:ending_index],
-                                   ub_memory[starting_index:ending_index])
+                                   opf.box_constraint_sets[VariableType.UMAG].equalities ** 2)
         self.box_constraint_sets[VariableType.CJJ] = box_set
-        return ending_index
 
     def _add_active_generator_cost(self, opf: ModelOpf):
         nof_active_power_injections = opf.variable_sets[VariableType.PG].size
@@ -283,15 +264,9 @@ class ModelJabr:
         index = jabr._add_sjk_variables(opf, index)
 
         # box constraints
-        nof_box_constraints = (opf.variable_sets[VariableType.PG].size +
-                               opf.variable_sets[VariableType.QG].size +
-                               opf.nof_nodes)
-        lower_bounds = np.empty(nof_box_constraints)
-        upper_bounds = np.empty(nof_box_constraints)
-        index = 0
-        index = jabr._add_pg_box_constraints(opf, index, lower_bounds, upper_bounds)
-        index = jabr._add_qg_box_constraints(opf, index, lower_bounds, upper_bounds)
-        index = jabr._add_cjj_box_constraints(opf, index, lower_bounds, upper_bounds)
+        jabr._add_pg_box_constraints(opf)
+        jabr._add_qg_box_constraints(opf)
+        jabr._add_cjj_box_constraints(opf)
 
         # cost
         jabr.linear_cost = np.zeros(jabr.nof_variables)

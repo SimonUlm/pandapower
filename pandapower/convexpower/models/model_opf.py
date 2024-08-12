@@ -38,7 +38,7 @@ class ModelOpf:
         # self.quadratic_inequality_constraints
 
     @classmethod
-    def from_om(cls, om: opf_model):
+    def from_om(cls, om: opf_model, enforce_equalities: bool = False):
         # initialize
         model = cls()
         model.nof_variables = om.var['N']
@@ -56,19 +56,20 @@ class ModelOpf:
             model.variable_sets[var_type] = var_set
 
         # box constraints
-        lower_bounds = np.empty(model.nof_variables)
-        upper_bounds = np.empty(model.nof_variables)
         for set_name in om.var['order']:
-            starting_index = om.var['idx']['i1'][set_name]
-            ending_index = om.var['idx']['iN'][set_name]
             var_type = VariableType.from_str(set_name)
             box_set = BoxConstraintSet(var_type,
                                        om.var['idx']['N'][set_name],
                                        om.var['data']['vl'][set_name],
-                                       om.var['data']['vu'][set_name],
-                                       lower_bounds[starting_index:ending_index],
-                                       upper_bounds[starting_index:ending_index])
+                                       om.var['data']['vu'][set_name],)
             model.box_constraint_sets[var_type] = box_set
+
+        # convert tight box constraints to linear equality constraints
+        for box_constraint_set in model.box_constraint_sets.values():
+            mask = box_constraint_set.lower_bounds == box_constraint_set.upper_bounds
+            box_constraint_set.equalities[mask] = box_constraint_set.lower_bounds[mask]
+            box_constraint_set.lower_bounds[mask] = float('-nan')
+            box_constraint_set.upper_bounds[mask] = float('nan')
 
         # admittance matrix (no idea what happens here) and number of nodes and edges
         base_mva, bus, gen, branch = \

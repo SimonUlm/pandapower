@@ -32,29 +32,27 @@ class VariableSet:
 class BoxConstraintSet:
     type: VariableType
     size: int
+    equalities: np.ndarray
     lower_bounds: np.ndarray
     upper_bounds: np.ndarray
 
     def __init__(self, var_type: VariableType,
                  size: int,
-                 lower_bounds_data: np.ndarray,
-                 upper_bounds_data: np.ndarray,
-                 lower_bounds_allocated_memory: np.ndarray = None,
-                 upper_bounds_allocated_memory: np.ndarray = None):
-        assert size == np.size(lower_bounds_data)
-        assert size == np.size(upper_bounds_data)
+                 lower_bounds: np.ndarray,
+                 upper_bounds: np.ndarray,
+                 equalities: np.ndarray = None):
+        assert size == np.size(lower_bounds)
+        assert size == np.size(upper_bounds)
         self.type = var_type
         self.size = size
-        if lower_bounds_allocated_memory is None:
-            self.lower_bounds = lower_bounds_data
+        self.lower_bounds = lower_bounds
+        self.upper_bounds = upper_bounds
+        if equalities is not None:
+            assert size == np.size(equalities)
+            self.equalities = equalities
         else:
-            self.lower_bounds = lower_bounds_allocated_memory
-            np.copyto(self.lower_bounds, lower_bounds_data)
-        if upper_bounds_allocated_memory is None:
-            self.upper_bounds = upper_bounds_data
-        else:
-            self.upper_bounds = upper_bounds_allocated_memory
-            np.copyto(self.upper_bounds, upper_bounds_data)
+            self.equalities = np.empty(size)
+            self.equalities[:] = float('nan')
 
 
 class LinearEqualityConstraints:

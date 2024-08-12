@@ -17,7 +17,7 @@ class ModelSocp:
     def __init__(self, nof_variables: int):
         self.nof_variables = nof_variables
 
-    def _box_to_linear_inequality_constraints(self, jabr: ModelJabr):
+    def _box_to_linear_constraints(self, jabr: ModelJabr):
 
         # initialize
         nof_box_constraints = (jabr.variable_sets[VariableType.PG].size +
@@ -30,6 +30,7 @@ class ModelSocp:
         ub_vector = np.concatenate((jabr.box_constraint_sets[VariableType.PG].upper_bounds,
                                     jabr.box_constraint_sets[VariableType.QG].upper_bounds,
                                     jabr.box_constraint_sets[VariableType.CJJ].upper_bounds))
+        ub_mask = np.invert(np.isnan(ub_vector))
 
         # lower bounds
         lb_matrix = sparse.csr_matrix((nof_box_constraints, self.nof_variables), dtype=np.float64)
@@ -37,12 +38,28 @@ class ModelSocp:
         lb_vector = np.concatenate((jabr.box_constraint_sets[VariableType.PG].lower_bounds,
                                     jabr.box_constraint_sets[VariableType.QG].lower_bounds,
                                     jabr.box_constraint_sets[VariableType.CJJ].lower_bounds))
+        lb_mask = np.invert(np.isnan(lb_vector))
 
         # combine
-        matrix = sparse.vstack((ub_matrix,
-                                lb_matrix), 'csr')
-        vector = np.concatenate((ub_vector, -lb_vector))
+        matrix = sparse.vstack((ub_matrix[ub_mask, :],
+                                lb_matrix[lb_mask, :]), 'csr')
+        vector = np.concatenate((ub_vector[ub_mask], -lb_vector[lb_mask]))
         self.linear_inequality_constraints = LinearInequalityConstraints(matrix, vector)
+
+        # equalities
+        eq_matrix = sparse.csr_matrix((nof_box_constraints, self.nof_variables), dtype=np.float64)
+        eq_matrix.setdiag(1)
+        eq_vector = np.concatenate((jabr.box_constraint_sets[VariableType.PG].equalities,
+                                    jabr.box_constraint_sets[VariableType.QG].equalities,
+                                    jabr.box_constraint_sets[VariableType.CJJ].equalities))
+        eq_mask = np.invert(np.isnan(eq_vector))
+        if not eq_mask.any():
+            return
+        new_equality_constraints = LinearEqualityConstraints(eq_matrix[eq_mask], eq_vector[eq_mask])
+        self.linear_equality_constraints = (LinearEqualityConstraints
+                                            .combine_linear_equality_constraints([new_equality_constraints,
+                                                                                  self.linear_equality_constraints]))
+
 
     @classmethod
     def from_jabr(cls, jabr: ModelJabr):
@@ -62,7 +79,7 @@ class ModelSocp:
                                                                                   jabr.hermitian_equalities]))
 
         # linear inequality constraints
-        socp._box_to_linear_inequality_constraints(jabr)
+        socp._box_to_linear_constraints(jabr)
 
         # socp constraints
         socp.socp_constraints = jabr.socp_constraints

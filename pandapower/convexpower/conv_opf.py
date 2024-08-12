@@ -19,7 +19,7 @@ from pandapower.convexpower.types.relaxation_type import RelaxationType
 from pandapower.convexpower.types.optimization_type import OptimizationType
 
 
-def conv_opf(ppc, ppopt, relaxation_str):
+def conv_opf(ppc, ppopt, relaxation_str, enforce_equalities):
     # initialize
     t0 = perf_counter()
 
@@ -41,7 +41,7 @@ def conv_opf(ppc, ppopt, relaxation_str):
     om = opf_setup(ppc, ppopt)
 
     # convert to own model
-    model = ModelOpf.from_om(om)
+    model = ModelOpf.from_om(om, enforce_equalities)
 
     # get the type of convex relaxation
     relaxation_type = RelaxationType.from_str(relaxation_str)
