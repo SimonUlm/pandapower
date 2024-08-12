@@ -2,21 +2,19 @@ from time import perf_counter
 
 import numpy as np
 from numpy import zeros, c_, shape
+
+from pandapower.conepower.models.model_jabr import ModelJabr
+from pandapower.conepower.models.model_opf import ModelOpf
+from pandapower.conepower.models.model_socp import ModelSocp
+from pandapower.conepower.solvers.socp import socp_execute
+from pandapower.conepower.types.relaxation_type import RelaxationType
+from pandapower.conepower.types.optimization_type import OptimizationType
+
 from pandapower.pypower.idx_brch import MU_ANGMAX
 from pandapower.pypower.idx_bus import MU_VMIN
 from pandapower.pypower.idx_gen import MU_QMIN
-
 from pandapower.pypower.opf_args import opf_args2
-from pandapower.pypower.opf_execute import opf_execute
 from pandapower.pypower.opf_setup import opf_setup
-
-from pandapower.convexpower.models.model_jabr import ModelJabr
-from pandapower.convexpower.models.model_opf import ModelOpf
-from pandapower.convexpower.models.model_socp import ModelSocp
-from pandapower.convexpower.recovery.jabr_to_opf import jabr_to_opf
-from pandapower.convexpower.socp_execute import socp_execute
-from pandapower.convexpower.types.relaxation_type import RelaxationType
-from pandapower.convexpower.types.optimization_type import OptimizationType
 
 
 def conv_opf(ppc, ppopt, relaxation_str, enforce_equalities):
@@ -54,7 +52,7 @@ def conv_opf(ppc, ppopt, relaxation_str, enforce_equalities):
 
     # apply relaxation
     if relaxation_type is RelaxationType.JABR:
-        jabr = ModelJabr.from_model_opf(model)
+        jabr = ModelJabr.from_opf(model)
         opt_model = ModelSocp.from_jabr(jabr)
         opt_type = OptimizationType.SOCP
     else:
@@ -73,7 +71,7 @@ def conv_opf(ppc, ppopt, relaxation_str, enforce_equalities):
     # recover solution
     if relaxation_type is RelaxationType.JABR:
         np.copyto(jabr.initial_values, x.flatten())
-        variable_sets, variables = jabr_to_opf(jabr)
+        variable_sets, variables = jabr.to_opf_variables()
     else:
         assert False
 

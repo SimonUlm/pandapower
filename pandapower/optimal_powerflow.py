@@ -14,7 +14,7 @@ from scipy.sparse import csr_matrix as sparse
 
 from pandapower.auxiliary import OPFNotConverged, _clean_up, _add_auxiliary_elements
 from pandapower.auxiliary import ppException, _clean_up, _add_auxiliary_elements
-from pandapower.convexpower.conv_opf import conv_opf
+from pandapower.conepower.conv_opf import conv_opf
 from pandapower.pypower.idx_bus import VM
 from pandapower.pypower.opf import opf
 from pandapower.pypower.printpf import printpf

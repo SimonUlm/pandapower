@@ -1,12 +1,14 @@
+import math
 import warnings
 from typing import Dict
 
-import scipy.sparse as sparse
 import numpy as np
+from scipy import sparse
 
-from pandapower.convexpower.models.model_components import *
-from pandapower.convexpower.models.model_opf import ModelOpf
-from pandapower.convexpower.types.variable_type import VariableType
+from pandapower.conepower.model_components.constraints import LinearEqualityConstraints, SocpConstraintsWithoutConstants
+from pandapower.conepower.model_components.vector_variables import BoxConstraintSet, VariableSet
+from pandapower.conepower.models.model_opf import ModelOpf
+from pandapower.conepower.types.variable_type import VariableType
 
 
 class ModelJabr:
@@ -25,9 +27,9 @@ class ModelJabr:
         self.variable_sets = {}
         self.box_constraint_sets = {}
 
-    def _create_cjj_indices_matrx(self, opf: ModelOpf):
-        # convert to csc format to ease indexing
-        adm_matr = opf.complex_admittance_matrix.tocsc(copy=True)
+    def _create_cjk_indices_matrx(self, opf: ModelOpf):
+        # create indices matrix by analyzing the admittance matrix
+        adm_matr = opf.complex_admittance_matrix.copy()
 
         # remove diagonal
         adm_matr.setdiag(0)
@@ -38,7 +40,7 @@ class ModelJabr:
             warnings.simplefilter("ignore")
             idx_matrix = adm_matr.astype(dtype=np.int64, casting='unsafe', copy=False)
 
-        # create indexing for cjk and sjk
+        # write the indices of the variable vector into the matrix
         starting_index = (opf.variable_sets[VariableType.PG].size +
                           opf.variable_sets[VariableType.QG].size +
                           opf.nof_nodes)
@@ -46,43 +48,46 @@ class ModelJabr:
         assert ending_index - starting_index == idx_matrix.data.size
         idx_matrix.data = np.arange(starting_index, ending_index)
 
-        # convert to coo, since we are particularly interested in the coordinates of the indices
+        # convert to coo, since we are particularly interested in the coordinates of the matrix entries
         idx_matrix = idx_matrix.tocoo(copy=True)
-
-        # create indexing for cjj
-        starting_index = (opf.variable_sets[VariableType.PG].size +
-                          opf.variable_sets[VariableType.QG].size)
-        ending_index = starting_index + opf.nof_nodes
-        idx_matrix.setdiag(np.arange(starting_index, ending_index))
         self.cjk_indices_matrix = idx_matrix
-        # TODO: Die Struktur ist nicht gerade sehr effizient.
-        #  Für die Richtung index -> row/column sollten die Indizies sortiert sein und später ausgenutzt werden.
 
-    def _add_pq_variables(self, opf: ModelOpf, starting_index: int) -> int:
-        ending_index = starting_index + opf.variable_sets[VariableType.PG].size
-        var_set = VariableSet(VariableType.PG,
-                              opf.variable_sets[VariableType.PG].size,
-                              opf.variable_sets[VariableType.PG].initial_values,
-                              self.initial_values[starting_index:ending_index])
-        self.variable_sets[VariableType.PG] = var_set
-        return ending_index
+    def _transfer_variables_with_box_constraints(self, opf: ModelOpf,
+                                                 jabr_variable_type: VariableType,
+                                                 starting_index: int) -> int:
+        # get original variable type
+        opf_variable_type = jabr_variable_type
+        if jabr_variable_type is VariableType.CJJ:
+            opf_variable_type = VariableType.UMAG
 
-    def _add_qg_variables(self, opf: ModelOpf, starting_index: int) -> int:
-        ending_index = starting_index + opf.variable_sets[VariableType.QG].size
-        var_set = VariableSet(VariableType.QG,
-                              opf.variable_sets[VariableType.QG].size,
-                              opf.variable_sets[VariableType.QG].initial_values,
-                              self.initial_values[starting_index:ending_index])
-        self.variable_sets[VariableType.QG] = var_set
-        return ending_index
+        # get data
+        data_dict = {
+            'var': opf.variable_sets[opf_variable_type].initial_values,
+            'lb': opf.box_constraint_sets[opf_variable_type].lower_bounds,
+            'ub': opf.box_constraint_sets[opf_variable_type].upper_bounds,
+            'eq': opf.box_constraint_sets[opf_variable_type].equalities
+        }
+        if jabr_variable_type is VariableType.CJJ:
+            for key, data in data_dict.items():
+                data_dict[key] = data ** 2
 
-    def _add_cjj_variables(self, opf: ModelOpf, starting_index: int) -> int:
-        ending_index = starting_index + opf.nof_nodes
-        var_set = VariableSet(VariableType.CJJ,
-                              opf.nof_nodes,
-                              opf.variable_sets[VariableType.UMAG].initial_values ** 2,
+        # transfer variables
+        ending_index = starting_index + opf.variable_sets[opf_variable_type].size
+        var_set = VariableSet(jabr_variable_type,
+                              data_dict['var'].size,
+                              data_dict['var'],
                               self.initial_values[starting_index:ending_index])
-        self.variable_sets[VariableType.CJJ] = var_set
+        self.variable_sets[jabr_variable_type] = var_set
+
+        # transfer box constraints
+        box_set = BoxConstraintSet(jabr_variable_type,
+                                   data_dict['var'].size,
+                                   data_dict['lb'],
+                                   data_dict['ub'],
+                                   data_dict['eq'])
+        self.box_constraint_sets[jabr_variable_type] = box_set
+
+        # return
         return ending_index
 
     def _add_cjk_variables(self, opf: ModelOpf, starting_index: int) -> int:
@@ -106,33 +111,6 @@ class ModelJabr:
                               self.initial_values[starting_index:ending_index])
         self.variable_sets[VariableType.SJK] = var_set
         return ending_index
-
-    def _add_pg_box_constraints(self,
-                                opf: ModelOpf):
-        box_set = BoxConstraintSet(VariableType.PG,
-                                   opf.variable_sets[VariableType.PG].size,
-                                   opf.box_constraint_sets[VariableType.PG].lower_bounds,
-                                   opf.box_constraint_sets[VariableType.PG].upper_bounds,
-                                   opf.box_constraint_sets[VariableType.PG].equalities)
-        self.box_constraint_sets[VariableType.PG] = box_set
-
-    def _add_qg_box_constraints(self,
-                                opf: ModelOpf):
-        box_set = BoxConstraintSet(VariableType.QG,
-                                   opf.variable_sets[VariableType.QG].size,
-                                   opf.box_constraint_sets[VariableType.QG].lower_bounds,
-                                   opf.box_constraint_sets[VariableType.QG].upper_bounds,
-                                   opf.box_constraint_sets[VariableType.QG].equalities)
-        self.box_constraint_sets[VariableType.QG] = box_set
-
-    def _add_cjj_box_constraints(self,
-                                 opf: ModelOpf):
-        box_set = BoxConstraintSet(VariableType.CJJ,
-                                   opf.nof_nodes,
-                                   opf.box_constraint_sets[VariableType.UMAG].lower_bounds ** 2,
-                                   opf.box_constraint_sets[VariableType.UMAG].upper_bounds ** 2,
-                                   opf.box_constraint_sets[VariableType.UMAG].equalities ** 2)
-        self.box_constraint_sets[VariableType.CJJ] = box_set
 
     def _add_active_generator_cost(self, opf: ModelOpf):
         nof_active_power_injections = opf.variable_sets[VariableType.PG].size
@@ -244,8 +222,52 @@ class ModelJabr:
         # assign to object
         self.socp_constraints = SocpConstraintsWithoutConstants(matrix_list, vector_list)
 
+    def _recover_angle_at_bus(self,
+                              new_angles: VariableSet,
+                              connectivity_matrix: sparse.csc_matrix,
+                              index: int,
+                              index_from: int = -1):
+
+        # update
+        if index_from == -1:
+            new_angles.initial_values[index] = 0
+        else:
+            index_cjk_sjk = connectivity_matrix[index_from, index]
+            angle = new_angles.initial_values[index_from] - math.atan2(self.variable_sets[VariableType.SJK]
+                                                                       .initial_values[index_cjk_sjk],
+                                                                       self.variable_sets[VariableType.CJK]
+                                                                       .initial_values[index_cjk_sjk])
+            new_angles.initial_values[index] = angle
+
+        # block the way back
+        col_start = connectivity_matrix.indptr[index]
+        col_end = connectivity_matrix.indptr[index + 1]
+        connectivity_matrix.data[col_start:col_end] = -1
+
+        # repeat for all neighbors
+        row = connectivity_matrix.getrow(index)
+        mask = row.data != -1
+        indices_to: np.ndarray = row.indices[mask]
+        for idx in indices_to:
+            self._recover_angle_at_bus(new_angles, connectivity_matrix, idx, index)
+        pass
+
+    def _recover_angles_from_radial_network(self, variable_sets: Dict[VariableType, VariableSet]):
+
+        # initialize
+        connectivity_matrix: sparse.csc_matrix = self.cjk_indices_matrix.tocsc(copy=True)
+        connectivity_matrix.setdiag(0)  # temp
+        connectivity_matrix.eliminate_zeros()  # temp
+        offset = (self.variable_sets[VariableType.PG].size +
+                  self.variable_sets[VariableType.QG].size +
+                  self.variable_sets[VariableType.CJJ].size)
+        connectivity_matrix.data -= offset
+
+        # start with bus 0
+        self._recover_angle_at_bus(variable_sets[VariableType.UANG], connectivity_matrix, 0)
+
     @classmethod
-    def from_model_opf(cls, opf: ModelOpf):
+    def from_opf(cls, opf: ModelOpf):
 
         # initialize
         jabr = cls()
@@ -254,19 +276,14 @@ class ModelJabr:
                               opf.nof_nodes +
                               opf.nof_edges * 4)
 
-        # variables
+        # variables and box constraints
         jabr.initial_values = np.empty(jabr.nof_variables)
         index = 0
-        index = jabr._add_pq_variables(opf, index)
-        index = jabr._add_qg_variables(opf, index)
-        index = jabr._add_cjj_variables(opf, index)
+        index = jabr._transfer_variables_with_box_constraints(opf, VariableType.PG, index)
+        index = jabr._transfer_variables_with_box_constraints(opf, VariableType.QG, index)
+        index = jabr._transfer_variables_with_box_constraints(opf, VariableType.CJJ, index)
         index = jabr._add_cjk_variables(opf, index)
         index = jabr._add_sjk_variables(opf, index)
-
-        # box constraints
-        jabr._add_pg_box_constraints(opf)
-        jabr._add_qg_box_constraints(opf)
-        jabr._add_cjj_box_constraints(opf)
 
         # cost
         jabr.linear_cost = np.zeros(jabr.nof_variables)
@@ -276,10 +293,55 @@ class ModelJabr:
         jabr._add_power_flow_equalitites(opf)
 
         # hermitian equations
-        jabr._create_cjj_indices_matrx(opf)
+        jabr._create_cjk_indices_matrx(opf)
         jabr._add_hermitian_equalities(opf)
 
         # socp constraints
         jabr._add_socp_constraints(opf)
 
         return jabr
+
+    def to_opf_variables(self) -> (Dict[VariableType, VariableSet], np.ndarray):
+
+        # initialize
+        nof_variables = (self.variable_sets[VariableType.PG].size +
+                         self.variable_sets[VariableType.QG].size +
+                         self.variable_sets[VariableType.CJJ].size * 2)
+        variables = np.empty(nof_variables)
+        variable_sets = {}
+
+        # TODO: Fix horrible code below
+        # pg
+        starting_index = 0
+        ending_index = self.variable_sets[VariableType.PG].size
+        variable_sets[VariableType.PG] = VariableSet(VariableType.PG,
+                                                     self.variable_sets[VariableType.PG].size,
+                                                     self.variable_sets[VariableType.PG].initial_values,
+                                                     variables[starting_index:ending_index])
+
+        # qg
+        starting_index = ending_index
+        ending_index = starting_index + self.variable_sets[VariableType.QG].size
+        variable_sets[VariableType.QG] = VariableSet(VariableType.QG,
+                                                     self.variable_sets[VariableType.QG].size,
+                                                     self.variable_sets[VariableType.QG].initial_values,
+                                                     variables[starting_index:ending_index])
+
+        # umag
+        starting_index = ending_index
+        ending_index = starting_index + self.variable_sets[VariableType.CJJ].size
+        variable_sets[VariableType.UMAG] = VariableSet(VariableType.UMAG,
+                                                       self.variable_sets[VariableType.CJJ].size,
+                                                       np.sqrt(self.variable_sets[VariableType.CJJ].initial_values),
+                                                       variables[starting_index:ending_index])
+
+        # uang TODO: Only works for bus 0 as the ref bus with angle 0!!!
+        starting_index = ending_index
+        ending_index = starting_index + self.variable_sets[VariableType.CJJ].size
+        variable_sets[VariableType.UANG] = VariableSet(VariableType.UANG,
+                                                       self.variable_sets[VariableType.CJJ].size,
+                                                       np.empty(self.variable_sets[VariableType.CJJ].size),
+                                                       variables[starting_index:ending_index])
+        self._recover_angles_from_radial_network(variable_sets)
+
+        return variable_sets, variables

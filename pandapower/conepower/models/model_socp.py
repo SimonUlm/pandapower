@@ -1,9 +1,11 @@
-import scipy.sparse as sparse
 import numpy as np
+from scipy import sparse
 
-from pandapower.convexpower.models.model_components import *
-from pandapower.convexpower.models.model_jabr import ModelJabr
-from pandapower.convexpower.types.variable_type import VariableType
+from pandapower.conepower.model_components.constraints import (LinearEqualityConstraints,
+                                                               LinearInequalityConstraints,
+                                                               SocpConstraintsWithoutConstants)
+from pandapower.conepower.models.model_jabr import ModelJabr
+from pandapower.conepower.types.variable_type import VariableType
 
 
 class ModelSocp:

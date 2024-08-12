@@ -6,8 +6,8 @@ from cvxopt import spmatrix as cvxmatrix
 from cvxopt import matrix as cvxvector
 from scipy import sparse
 
-from pandapower.convexpower.models.model_components import SocpConstraintsWithoutConstants
-from pandapower.convexpower.models.model_socp import ModelSocp
+from pandapower.conepower.model_components.constraints import SocpConstraintsWithoutConstants
+from pandapower.conepower.models.model_socp import ModelSocp
 
 
 def _matrix_to_cvx(matrix: sparse.csr_matrix) -> cvxmatrix:

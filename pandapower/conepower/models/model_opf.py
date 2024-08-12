@@ -1,11 +1,12 @@
 import warnings
 from typing import Dict
 
-import scipy.sparse as sparse
 import numpy as np
+from scipy import sparse
 
-from pandapower.convexpower.models.model_components import *
-from pandapower.convexpower.types.variable_type import VariableType
+from pandapower.conepower.model_components.vector_variables import BoxConstraintSet, VariableSet
+from pandapower.conepower.types.variable_type import VariableType
+
 from pandapower.pypower.idx_gen import GEN_STATUS
 from pandapower.pypower.makeSbus import _get_Cg, _get_Sload  # TODO: Think of a better way.
 from pandapower.pypower.makeYbus import makeYbus
