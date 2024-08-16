@@ -41,10 +41,10 @@ class LinearInequalityConstraints:
 
 class SocpConstraintsWithoutConstants:
     nof_constraints: int
-    matrices: List[sparse.csr_matrix]
-    vectors: List[sparse.csr_matrix]
+    matrices: List[sparse.lil_matrix]
+    vectors: List[sparse.lil_matrix]
 
-    def __init__(self, matrices: List[sparse.csr_matrix], vectors: List[sparse.csr_matrix]):
+    def __init__(self, matrices: List[sparse.lil_matrix], vectors: List[sparse.lil_matrix]):
         assert len(matrices) == len(vectors)
         self.nof_constraints = len(matrices)
         dim = matrices[0].shape[1]

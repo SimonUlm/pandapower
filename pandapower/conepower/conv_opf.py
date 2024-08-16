@@ -3,8 +3,8 @@ from time import perf_counter
 import numpy as np
 from numpy import zeros, c_, shape
 
-from pandapower.conepower.models.model_jabr import ModelJabr
 from pandapower.conepower.models.model_opf import ModelOpf
+from pandapower.conepower.models.model_jabr import ModelJabr
 from pandapower.conepower.models.model_socp import ModelSocp
 from pandapower.conepower.solvers.socp import socp_execute
 from pandapower.conepower.types.relaxation_type import RelaxationType

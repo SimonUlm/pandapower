@@ -10,7 +10,7 @@ from pandapower.conepower.model_components.constraints import SocpConstraintsWit
 from pandapower.conepower.models.model_socp import ModelSocp
 
 
-def _matrix_to_cvx(matrix: sparse.csr_matrix) -> cvxmatrix:
+def _matrix_to_cvx(matrix) -> cvxmatrix:
     coo = matrix.tocoo()
     return cvxmatrix(coo.data.tolist(),
                      coo.row.tolist(),

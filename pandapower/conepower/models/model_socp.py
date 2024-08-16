@@ -35,14 +35,14 @@ class ModelSocp:
                                 jabr.variable_sets[VariableType.CJJ].upper_bounds)))
 
         # upper bounds
-        ub_matrix = sparse.csr_matrix((nof_box_constraints, self.nof_variables), dtype=np.float64)
+        ub_matrix = sparse.lil_matrix((nof_box_constraints, self.nof_variables), dtype=np.float64)
         ub_matrix.setdiag(1)
         ub_vector = np.concatenate((jabr.variable_sets[VariableType.PG].upper_bounds,
                                     jabr.variable_sets[VariableType.QG].upper_bounds,
                                     jabr.variable_sets[VariableType.CJJ].upper_bounds))
 
         # lower bounds
-        lb_matrix = sparse.csr_matrix((nof_box_constraints, self.nof_variables), dtype=np.float64)
+        lb_matrix = sparse.lil_matrix((nof_box_constraints, self.nof_variables), dtype=np.float64)
         lb_matrix.setdiag(-1)
         lb_vector = np.concatenate((jabr.variable_sets[VariableType.PG].lower_bounds,
                                     jabr.variable_sets[VariableType.QG].lower_bounds,
@@ -65,7 +65,6 @@ class ModelSocp:
 
     @classmethod
     def from_jabr(cls, jabr: ModelJabr):
-
         # initialize
         socp = cls(jabr.nof_variables)
 
@@ -76,9 +75,7 @@ class ModelSocp:
         socp.linear_cost = jabr.linear_cost
 
         # linear equality constraints
-        socp.linear_equality_constraints = (LinearEqualityConstraints
-                                            .combine_linear_equality_constraints([jabr.power_flow_equalities,
-                                                                                  jabr.hermitian_equalities]))
+        socp.linear_equality_constraints = jabr.power_flow_equalities
 
         # linear inequality constraints
         socp._box_to_linear_constraints(jabr)
