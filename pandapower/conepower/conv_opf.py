@@ -71,9 +71,11 @@ def conv_opf(ppc, ppopt, relaxation_str):
 
     result = ppc
 
-    # recover solution
+    # calculate error and recover solution
     if relaxation_type is RelaxationType.JABR:
-        np.copyto(jabr.values, resulting_variables)
+        jabr.set_values(resulting_variables)
+        error = jabr.calculate_jabr_infeasibility()
+        print('SOCP infeasibility: ' + str(error))
         variable_sets, variables = jabr.to_opf_variables()
         #np.copyto(model.values, variables)  # TODO: Refactor
         result = postprocess(ppc=ppc,

@@ -1,3 +1,4 @@
+import math
 from typing import Dict
 
 import numpy as np
@@ -165,6 +166,22 @@ class ModelJabr:
     def _recover_angles(self, variable_sets: Dict[VariableType, VariableSet]):
         connectivity_matrix = self.submatrix.get_connectivity_matrix()
         self._recover_angle_at_bus(variable_sets[VariableType.UANG], connectivity_matrix, 0)
+
+    def _calculate_jabr_infeasibility_squared(self) -> float:
+        squared_error: float = 0.
+        socps = self.jabr_constraints
+        for i in range(socps.nof_constraints):
+            vector = socps.lhs_matrices[i] @ self.values
+            scalar = socps.rhs_vectors[i].transpose() @ self.values
+            squared_error += (vector.dot(vector) - scalar[0] ** 2) ** 2
+        return squared_error
+
+    def set_values(self, values: np.ndarray):
+        assert values.shape == self.values.shape
+        np.copyto(self.values, values)
+
+    def calculate_jabr_infeasibility(self) -> float:
+        return math.sqrt(self._calculate_jabr_infeasibility_squared())
 
     @classmethod
     def from_opf(cls, opf: ModelOpf):
