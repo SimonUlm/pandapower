@@ -4,7 +4,7 @@ from typing import Dict
 import numpy as np
 from scipy import sparse
 
-from pandapower.conepower.model_components.vector_variables import BoxConstraintSet, VariableSet
+from pandapower.conepower.model_components.vector_variable import VariableSet
 from pandapower.conepower.types.variable_type import VariableType
 
 from pandapower.pypower.idx_gen import GEN_STATUS
@@ -14,17 +14,17 @@ from pandapower.pypower.opf_model import opf_model
 
 
 class ModelOpf:
-    box_constraint_sets: Dict[VariableType, BoxConstraintSet]
     complex_admittance_matrix: sparse.csr_matrix
     edges: int
+    enforce_equalities: bool
     generator_connection_matrix: sparse.csr_matrix
-    initial_values: np.ndarray
     linear_active_generator_cost: np.ndarray
     loads_active: np.ndarray
     loads_reactive: np.ndarray
     nof_edges: int
     nof_nodes: int
     nof_variables: int
+    values: np.ndarray
     variable_sets: Dict[VariableType, VariableSet]
 
     def __init__(self):
@@ -32,7 +32,6 @@ class ModelOpf:
         self.nof_nodes = 0
         self.nof_variables = 0
         self.variable_sets = {}
-        self.box_constraint_sets = {}
         # self.linear_equality_constraints: LinearEqualityConstraints
         # self.linear_inequality_constraints: LinearInequalityConstraints
         # self.complex_admittance_matrix: sparse.csr_matrix
@@ -45,34 +44,21 @@ class ModelOpf:
         model.nof_variables = om.var['N']
 
         # variables
-        model.initial_values = np.empty(model.nof_variables)
+        model.values = np.empty(model.nof_variables)
         for set_name in om.var['order']:
             starting_index = om.var['idx']['i1'][set_name]
             ending_index = om.var['idx']['iN'][set_name]
             var_type = VariableType.from_str(set_name)
-            var_set = VariableSet(var_type,
-                                  om.var['idx']['N'][set_name],
-                                  om.var['data']['v0'][set_name],
-                                  model.initial_values[starting_index:ending_index])
+            var_set = VariableSet(om.var['data']['v0'][set_name],
+                                  om.var['data']['vl'][set_name],
+                                  om.var['data']['vu'][set_name],
+                                  model.values[starting_index:ending_index])
             model.variable_sets[var_type] = var_set
 
-        # box constraints
-        for set_name in om.var['order']:
-            var_type = VariableType.from_str(set_name)
-            box_set = BoxConstraintSet(var_type,
-                                       om.var['idx']['N'][set_name],
-                                       om.var['data']['vl'][set_name],
-                                       om.var['data']['vu'][set_name],)
-            model.box_constraint_sets[var_type] = box_set
+        # save for later whether equality should be enforced for variables with equal lower and upper bound
+        model.enforce_equalities = enforce_equalities
 
-        # convert tight box constraints to linear equality constraints
-        for box_constraint_set in model.box_constraint_sets.values():
-            mask = box_constraint_set.lower_bounds == box_constraint_set.upper_bounds
-            box_constraint_set.equalities[mask] = box_constraint_set.lower_bounds[mask]
-            box_constraint_set.lower_bounds[mask] = float('-nan')
-            box_constraint_set.upper_bounds[mask] = float('nan')
-
-        # admittance matrix (no idea what happens here) and number of nodes and edges
+        # admittance matrix and number of nodes and edges
         base_mva, bus, gen, branch = \
             om.ppc["baseMVA"], om.ppc["bus"], om.ppc["gen"], om.ppc["branch"]
         csc_matrix, _, _ = makeYbus(base_mva, bus, branch)
@@ -102,6 +88,6 @@ class ModelOpf:
         assert np.all(gen_cost[:, 3] == 2)  # linear cost function
         assert np.all(gen_cost[:, 5] == 0)  # no affine cost function
         model.linear_active_generator_cost = np.copy(gen_cost[:, 4])
-        assert np.size(model.linear_active_generator_cost) == np.size(model.box_constraint_sets[VariableType.PG].size)
+        assert np.size(model.linear_active_generator_cost) == np.size(model.variable_sets[VariableType.PG].size)
 
         return model

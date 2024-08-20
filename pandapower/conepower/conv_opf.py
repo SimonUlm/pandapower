@@ -70,7 +70,7 @@ def conv_opf(ppc, ppopt, relaxation_str, enforce_equalities):
 
     # recover solution
     if relaxation_type is RelaxationType.JABR:
-        np.copyto(jabr.initial_values, x.flatten())
+        np.copyto(jabr.values, x.flatten())
         variable_sets, variables = jabr.to_opf_variables()
     else:
         assert False

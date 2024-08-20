@@ -6,26 +6,25 @@ import numpy as np
 from scipy import sparse
 
 from pandapower.conepower.model_components.constraints import LinearEqualityConstraints, SocpConstraintsWithoutConstants
-from pandapower.conepower.model_components.vector_variables import BoxConstraintSet, VariableSet
+from pandapower.conepower.model_components.vector_variable import VariableSet
 from pandapower.conepower.models.model_opf import ModelOpf
 from pandapower.conepower.types.variable_type import VariableType
 
 
 class ModelJabr:
-    box_constraint_sets: Dict[VariableType, BoxConstraintSet]
     cjk_indices_matrix: sparse.coo_matrix
-    initial_values: np.ndarray
+    enforce_equalities: bool
     hermitian_equalities: LinearEqualityConstraints
     linear_cost: np.ndarray
     power_flow_equalities: LinearEqualityConstraints
     nof_variables: int
     socp_constraints: SocpConstraintsWithoutConstants
+    values: np.ndarray
     variable_sets: Dict[VariableType, VariableSet]
 
     def __init__(self):
         self.nof_variables = 0
         self.variable_sets = {}
-        self.box_constraint_sets = {}
 
     def _create_cjk_indices_matrx(self, opf: ModelOpf):
         # create indices matrix by analyzing the admittance matrix
@@ -62,10 +61,9 @@ class ModelJabr:
 
         # get data
         data_dict = {
-            'var': opf.variable_sets[opf_variable_type].initial_values,
-            'lb': opf.box_constraint_sets[opf_variable_type].lower_bounds,
-            'ub': opf.box_constraint_sets[opf_variable_type].upper_bounds,
-            'eq': opf.box_constraint_sets[opf_variable_type].equalities
+            'var': opf.variable_sets[opf_variable_type].values,
+            'lb': opf.variable_sets[opf_variable_type].lower_bounds,
+            'ub': opf.variable_sets[opf_variable_type].upper_bounds,
         }
         if jabr_variable_type is VariableType.CJJ:
             for key, data in data_dict.items():
@@ -73,42 +71,30 @@ class ModelJabr:
 
         # transfer variables
         ending_index = starting_index + opf.variable_sets[opf_variable_type].size
-        var_set = VariableSet(jabr_variable_type,
-                              data_dict['var'].size,
-                              data_dict['var'],
-                              self.initial_values[starting_index:ending_index])
+        var_set = VariableSet(data_dict['var'],
+                              data_dict['lb'],
+                              data_dict['ub'],
+                              self.values[starting_index:ending_index])
         self.variable_sets[jabr_variable_type] = var_set
-
-        # transfer box constraints
-        box_set = BoxConstraintSet(jabr_variable_type,
-                                   data_dict['var'].size,
-                                   data_dict['lb'],
-                                   data_dict['ub'],
-                                   data_dict['eq'])
-        self.box_constraint_sets[jabr_variable_type] = box_set
 
         # return
         return ending_index
 
     def _add_cjk_variables(self, opf: ModelOpf, starting_index: int) -> int:
         # for now, assume all angles are zero
-        assert not opf.variable_sets[VariableType.UANG].initial_values.any()
+        assert not opf.variable_sets[VariableType.UANG].values.any()
         ending_index = starting_index + opf.nof_edges * 2
-        var_set = VariableSet(VariableType.CJK,
-                              opf.nof_edges * 2,
-                              np.ones(opf.nof_edges * 2),
-                              self.initial_values[starting_index:ending_index])
+        var_set = VariableSet(values_data=np.ones(opf.nof_edges * 2),
+                              values_allocated_memory=self.values[starting_index:ending_index])
         self.variable_sets[VariableType.CJK] = var_set
         return ending_index
 
     def _add_sjk_variables(self, opf: ModelOpf, starting_index: int) -> int:
         # for now, assume all angles are zero
-        assert not opf.variable_sets[VariableType.UANG].initial_values.any()
+        assert not opf.variable_sets[VariableType.UANG].values.any()
         ending_index = starting_index + opf.nof_edges * 2
-        var_set = VariableSet(VariableType.SJK,
-                              opf.nof_edges * 2,
-                              np.zeros(opf.nof_edges * 2),
-                              self.initial_values[starting_index:ending_index])
+        var_set = VariableSet(values_data=np.zeros(opf.nof_edges * 2),
+                              values_allocated_memory=self.values[starting_index:ending_index])
         self.variable_sets[VariableType.SJK] = var_set
         return ending_index
 
@@ -227,17 +213,16 @@ class ModelJabr:
                               connectivity_matrix: sparse.csc_matrix,
                               index: int,
                               index_from: int = -1):
-
         # update
         if index_from == -1:
-            new_angles.initial_values[index] = 0
+            new_angles.values[index] = 0
         else:
             index_cjk_sjk = connectivity_matrix[index_from, index]
-            angle = new_angles.initial_values[index_from] - math.atan2(self.variable_sets[VariableType.SJK]
-                                                                       .initial_values[index_cjk_sjk],
-                                                                       self.variable_sets[VariableType.CJK]
-                                                                       .initial_values[index_cjk_sjk])
-            new_angles.initial_values[index] = angle
+            angle = new_angles.values[index_from] - math.atan2(self.variable_sets[VariableType.SJK]
+                                                               .values[index_cjk_sjk],
+                                                               self.variable_sets[VariableType.CJK]
+                                                               .values[index_cjk_sjk])
+            new_angles.values[index] = angle
 
         # block the way back
         col_start = connectivity_matrix.indptr[index]
@@ -253,7 +238,6 @@ class ModelJabr:
         pass
 
     def _recover_angles_from_radial_network(self, variable_sets: Dict[VariableType, VariableSet]):
-
         # initialize
         connectivity_matrix: sparse.csc_matrix = self.cjk_indices_matrix.tocsc(copy=True)
         connectivity_matrix.setdiag(0)  # temp
@@ -277,13 +261,16 @@ class ModelJabr:
                               opf.nof_edges * 4)
 
         # variables and box constraints
-        jabr.initial_values = np.empty(jabr.nof_variables)
+        jabr.values = np.empty(jabr.nof_variables)
         index = 0
         index = jabr._transfer_variables_with_box_constraints(opf, VariableType.PG, index)
         index = jabr._transfer_variables_with_box_constraints(opf, VariableType.QG, index)
         index = jabr._transfer_variables_with_box_constraints(opf, VariableType.CJJ, index)
         index = jabr._add_cjk_variables(opf, index)
         index = jabr._add_sjk_variables(opf, index)
+
+        # save for later whether equality should be enforced for variables with equal lower and upper bound
+        jabr.enforce_equalities = opf.enforce_equalities
 
         # cost
         jabr.linear_cost = np.zeros(jabr.nof_variables)
@@ -314,34 +301,26 @@ class ModelJabr:
         # pg
         starting_index = 0
         ending_index = self.variable_sets[VariableType.PG].size
-        variable_sets[VariableType.PG] = VariableSet(VariableType.PG,
-                                                     self.variable_sets[VariableType.PG].size,
-                                                     self.variable_sets[VariableType.PG].initial_values,
-                                                     variables[starting_index:ending_index])
+        variable_sets[VariableType.PG] = VariableSet(values_data=self.variable_sets[VariableType.PG].values,
+                                                     values_allocated_memory=variables[starting_index:ending_index])
 
         # qg
         starting_index = ending_index
         ending_index = starting_index + self.variable_sets[VariableType.QG].size
-        variable_sets[VariableType.QG] = VariableSet(VariableType.QG,
-                                                     self.variable_sets[VariableType.QG].size,
-                                                     self.variable_sets[VariableType.QG].initial_values,
-                                                     variables[starting_index:ending_index])
+        variable_sets[VariableType.QG] = VariableSet(values_data=self.variable_sets[VariableType.QG].values,
+                                                     values_allocated_memory=variables[starting_index:ending_index])
 
         # umag
         starting_index = ending_index
         ending_index = starting_index + self.variable_sets[VariableType.CJJ].size
-        variable_sets[VariableType.UMAG] = VariableSet(VariableType.UMAG,
-                                                       self.variable_sets[VariableType.CJJ].size,
-                                                       np.sqrt(self.variable_sets[VariableType.CJJ].initial_values),
-                                                       variables[starting_index:ending_index])
+        variable_sets[VariableType.UMAG] = VariableSet(values_data=np.sqrt(self.variable_sets[VariableType.CJJ].values),
+                                                       values_allocated_memory=variables[starting_index:ending_index])
 
         # uang TODO: Only works for bus 0 as the ref bus with angle 0!!!
         starting_index = ending_index
         ending_index = starting_index + self.variable_sets[VariableType.CJJ].size
-        variable_sets[VariableType.UANG] = VariableSet(VariableType.UANG,
-                                                       self.variable_sets[VariableType.CJJ].size,
-                                                       np.empty(self.variable_sets[VariableType.CJJ].size),
-                                                       variables[starting_index:ending_index])
+        variable_sets[VariableType.UANG] = VariableSet(values_data=np.empty(self.variable_sets[VariableType.CJJ].size),
+                                                       values_allocated_memory=variables[starting_index:ending_index])
         self._recover_angles_from_radial_network(variable_sets)
 
         return variable_sets, variables
