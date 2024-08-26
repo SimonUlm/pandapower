@@ -78,8 +78,8 @@ class ModelJabr:
 
     def _add_power_flow_equalitites(self, opf: ModelOpf):
         # create matrices for cjj, cjk and sjk
-        pg_matrix = self.submatrix.create_pg_linear_system_matrix(opf.complex_admittance_matrix)
-        qg_matrix = self.submatrix.create_qg_linear_system_matrix(opf.complex_admittance_matrix)
+        pg_matrix = self.submatrix.create_pg_linear_system_matrix(opf.admittances.y_bus)
+        qg_matrix = self.submatrix.create_qg_linear_system_matrix(opf.admittances.y_bus)
 
         # create matrices for pg and sg
         connection_matrix = opf.generator_connection_matrix
@@ -158,7 +158,7 @@ class ModelJabr:
         index = jabr._add_sjk_variables(opf, index)
 
         # create submatrix
-        jabr.submatrix = JabrSubmatrix(opf.complex_admittance_matrix,
+        jabr.submatrix = JabrSubmatrix(opf.admittances.y_bus,
                                        jabr.values[(opf.variable_sets[VariableType.PG].size +
                                                     opf.variable_sets[VariableType.QG].size):
                                                    jabr.nof_variables])

@@ -4,17 +4,18 @@ from typing import Dict
 import numpy as np
 from scipy import sparse
 
+from pandapower.conepower.model_components.admittances import Admittances
 from pandapower.conepower.model_components.vector_variable import VariableSet
 from pandapower.conepower.types.variable_type import VariableType
 
 from pandapower.pypower.idx_gen import GEN_STATUS
 from pandapower.pypower.makeSbus import _get_Cg, _get_Sload  # TODO: Think of a better way.
-from pandapower.pypower.makeYbus import makeYbus
+from pandapower.pypower.makeYbus import branch_vectors, makeYbus
 from pandapower.pypower.opf_model import opf_model
 
 
 class ModelOpf:
-    complex_admittance_matrix: sparse.csr_matrix
+    admittances: Admittances
     edges: int
     enforce_equalities: bool
     generator_connection_matrix: sparse.csr_matrix
@@ -35,7 +36,6 @@ class ModelOpf:
         # self.linear_equality_constraints: LinearEqualityConstraints
         # self.linear_inequality_constraints: LinearInequalityConstraints
         # self.complex_admittance_matrix: sparse.csr_matrix
-        # self.quadratic_inequality_constraints
 
     @classmethod
     def from_om(cls, om: opf_model, enforce_equalities: bool = False):
@@ -61,8 +61,9 @@ class ModelOpf:
         # admittance matrix and number of nodes and edges
         base_mva, bus, gen, branch = \
             om.ppc["baseMVA"], om.ppc["bus"], om.ppc["gen"], om.ppc["branch"]
-        csc_matrix, _, _ = makeYbus(base_mva, bus, branch)
-        model.complex_admittance_matrix = csc_matrix.tocsr()
+        y_tt, y_ff, y_ft, y_tf = branch_vectors(branch, branch.shape[0])
+        y_bus, _, _ = makeYbus(base_mva, bus, branch)
+        model.admittances = Admittances(y_bus, y_ff, y_ft, y_tf, y_tt)
 
         model.nof_edges = branch.shape[0]
         model.nof_nodes = bus.shape[0]
