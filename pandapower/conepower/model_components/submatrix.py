@@ -178,7 +178,7 @@ class JabrSubmatrix(HermitianSubmatrix):
         # initialize lists and calculate offsets
         size = self.dim + self._nof_edges * 2
         matrix_list = [sparse.lil_matrix((3, size), dtype=float) for _ in range(self._nof_edges)]
-        vector_list = [sparse.lil_matrix((1, size), dtype=float) for _ in range(self._nof_edges)]
+        vector_list = [sparse.lil_matrix((size, 1), dtype=float) for _ in range(self._nof_edges)]
 
         # define the matrices and vectors one by one (there has to be a better way...)
         for i in range(self.dim, self._complex_size):
@@ -193,8 +193,8 @@ class JabrSubmatrix(HermitianSubmatrix):
             matrix[2, i+self._offset_complex_to_real] = 1
             # vector
             vector = vector_list[i-self.dim]
-            vector[0, row] = 0.5
-            vector[0, col] = 0.5
+            vector[row, 0] = 0.5
+            vector[col, 0] = 0.5
 
         # return matrices and vectors
         return matrix_list, vector_list

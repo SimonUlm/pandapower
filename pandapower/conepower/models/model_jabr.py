@@ -3,7 +3,7 @@ from typing import Dict
 import numpy as np
 from scipy import sparse
 
-from pandapower.conepower.model_components.constraints import LinearEqualityConstraints, SocpConstraintsWithoutConstants
+from pandapower.conepower.model_components.constraints import LinearConstraints, SocpConstraints
 from pandapower.conepower.model_components.submatrix import JabrSubmatrix
 from pandapower.conepower.model_components.vector_variable import VariableSet
 from pandapower.conepower.models.model_opf import ModelOpf
@@ -12,10 +12,10 @@ from pandapower.conepower.types.variable_type import VariableType
 
 class ModelJabr:
     enforce_equalities: bool
+    jabr_constraints: SocpConstraints
     linear_cost: np.ndarray
-    power_flow_equalities: LinearEqualityConstraints
+    power_flow_equalities: LinearConstraints
     nof_variables: int
-    socp_constraints: SocpConstraintsWithoutConstants
     submatrix: JabrSubmatrix
     values: np.ndarray
     variable_sets: Dict[VariableType, VariableSet]
@@ -97,18 +97,18 @@ class ModelJabr:
         rhs = -np.concatenate((opf.loads_active, opf.loads_reactive))
 
         # add to model
-        self.power_flow_equalities = LinearEqualityConstraints(pf_matrix, rhs)
+        self.power_flow_equalities = LinearConstraints(pf_matrix, rhs)
 
     def _add_socp_constraints(self):
         matrix_list, vector_list = self.submatrix.create_socp_constraints()
         assert len(matrix_list) == len(vector_list)
         nof_gen_variables = self.variable_sets[VariableType.PG].size + self.variable_sets[VariableType.QG].size
         empty_gen_matr = sparse.lil_matrix((3, nof_gen_variables), dtype=float)
-        empty_gen_vec = sparse.lil_matrix((1, nof_gen_variables), dtype=float)
+        empty_gen_vec = sparse.lil_matrix((nof_gen_variables, 1), dtype=float)
         for i in range(len(matrix_list)):
             matrix_list[i] = sparse.hstack((empty_gen_matr, matrix_list[i]), format='lil', dtype=float)
-            vector_list[i] = sparse.hstack((empty_gen_vec, vector_list[i]), format='lil', dtype=float)
-        self.socp_constraints = SocpConstraintsWithoutConstants(matrix_list, vector_list)
+            vector_list[i] = sparse.vstack((empty_gen_vec, vector_list[i]), format='lil', dtype=float)
+        self.jabr_constraints = SocpConstraints(matrix_list, vector_list)
 
     def _recover_angle_at_bus(self,
                               angles: VariableSet,

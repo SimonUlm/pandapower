@@ -1,19 +1,17 @@
 import numpy as np
 from scipy import sparse
 
-from pandapower.conepower.model_components.constraints import (LinearEqualityConstraints,
-                                                               LinearInequalityConstraints,
-                                                               SocpConstraintsWithoutConstants)
+from pandapower.conepower.model_components.constraints import LinearConstraints, SocpConstraints
 from pandapower.conepower.models.model_jabr import ModelJabr
 from pandapower.conepower.types.variable_type import VariableType
 
 
 class ModelSocp:
     linear_cost: np.ndarray
-    linear_equality_constraints: LinearEqualityConstraints
-    linear_inequality_constraints: LinearInequalityConstraints
+    linear_equality_constraints: LinearConstraints
+    linear_inequality_constraints: LinearConstraints
     nof_variables: int
-    socp_constraints: SocpConstraintsWithoutConstants
+    socp_constraints: SocpConstraints
     values: np.ndarray
 
     def __init__(self, nof_variables: int):
@@ -52,16 +50,13 @@ class ModelSocp:
         matrix = sparse.vstack((ub_matrix[mask, :],
                                 lb_matrix[mask, :]), 'csr')
         vector = np.concatenate((ub_vector[mask], -lb_vector[mask]))
-        self.linear_inequality_constraints = LinearInequalityConstraints(matrix, vector)
+        self.linear_inequality_constraints = LinearConstraints(matrix, vector)
 
         # equalities
         mask_inv = np.invert(mask)
         if not mask.any():
             return
-        new_equality_constraints = LinearEqualityConstraints(ub_matrix[mask_inv, :], ub_vector[mask_inv])
-        self.linear_equality_constraints = (LinearEqualityConstraints
-                                            .combine_linear_equality_constraints([new_equality_constraints,
-                                                                                  self.linear_equality_constraints]))
+        self.linear_equality_constraints += LinearConstraints(ub_matrix[mask_inv, :], ub_vector[mask_inv])
 
     @classmethod
     def from_jabr(cls, jabr: ModelJabr):
@@ -81,6 +76,6 @@ class ModelSocp:
         socp._box_to_linear_constraints(jabr)
 
         # socp constraints
-        socp.socp_constraints = jabr.socp_constraints
+        socp.socp_constraints = jabr.jabr_constraints
 
         return socp

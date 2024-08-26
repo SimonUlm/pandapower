@@ -6,59 +6,53 @@ from cvxopt import spmatrix as cvxmatrix
 from cvxopt import matrix as cvxvector
 from scipy import sparse
 
-from pandapower.conepower.model_components.constraints import SocpConstraintsWithoutConstants
+from pandapower.conepower.model_components.constraints import SocpConstraints
 from pandapower.conepower.models.model_socp import ModelSocp
 
 
-def _matrix_to_cvx(matrix) -> cvxmatrix:
-    coo = matrix.tocoo()
-    return cvxmatrix(coo.data.tolist(),
-                     coo.row.tolist(),
-                     coo.col.tolist(),
+def _sparse_matrix_to_cvxopt(matrix: sparse.coo_matrix) -> cvxmatrix:
+    return cvxmatrix(matrix.data.tolist(),
+                     matrix.row.tolist(),
+                     matrix.col.tolist(),
                      size=matrix.shape)
 
 
-def _vector_to_cvx(vector: np.ndarray) -> cvxvector:
+def _dense_vector_to_cvxopt(vector: np.ndarray) -> cvxvector:
     return cvxvector(vector)
-
-
-def _socp_to_cvx(socp_constraints: SocpConstraintsWithoutConstants) -> (List[cvxmatrix], List[cvxvector]):
-    cvx_matrices = []
-    cvx_vectors = [_vector_to_cvx(np.zeros(4)) for i in range(socp_constraints.nof_constraints)]
-    for i in range(socp_constraints.nof_constraints):
-        matrix = socp_constraints.matrices[i]
-        vector = -socp_constraints.vectors[i]
-        cvx_matrix = _matrix_to_cvx(sparse.vstack((vector,
-                                                   matrix), 'csr'))
-        cvx_matrices.append(cvx_matrix)
-    return cvx_matrices, cvx_vectors
-    # TODO: It works, but it doesn't match the documentation. This needs to be validated thoroughly.
 
 
 def socp_execute(model: ModelSocp) -> np.ndarray:
 
     # objective function
-    c = _vector_to_cvx(model.linear_cost)
+    c = _dense_vector_to_cvxopt(model.linear_cost)
 
     # inequalities
-    Gl = _matrix_to_cvx(model.linear_inequality_constraints.matrix)
-    hl = _vector_to_cvx(model.linear_inequality_constraints.upper_rhs)
+    g_ineq, h_ineq, dim_ineq = model.linear_inequality_constraints.to_cone_formulation()
 
     # socp
-    Gq, hq =_socp_to_cvx(model.socp_constraints)
+    g_socp, h_socp, dims_socp = model.socp_constraints.to_cone_formulation()
+
+    # combine cone constraints
+    g = _sparse_matrix_to_cvxopt(sparse.vstack((g_ineq, g_socp), format='coo'))
+    h = _dense_vector_to_cvxopt(np.concatenate((h_ineq, h_socp)))
+    dims = {
+        'l': dim_ineq,
+        'q': dims_socp,
+        's': []
+    }
 
     # equalities
-    A = _matrix_to_cvx(model.linear_equality_constraints.matrix)
-    b = _vector_to_cvx(model.linear_equality_constraints.rhs)
+    a_eq, b_eq, _ = model.linear_equality_constraints.to_cone_formulation()
+    a = _sparse_matrix_to_cvxopt(a_eq)
+    b = _dense_vector_to_cvxopt(b_eq)
 
     # initial values
     # TODO: Initial values für Slack und Socp werden auch genötigt.
 
     # solve
-    sol = solvers.socp(c,
-                       Gl=Gl, hl=hl,
-                       Gq=Gq, hq=hq,
-                       A=A, b=b)
+    sol = solvers.conelp(c=c,
+                         G=g, h=h, dims=dims,
+                         A=a, b=b)
 
     # solution vector
     assert sol['x'] is not None
