@@ -5,9 +5,11 @@ import numpy as np
 from scipy import sparse
 
 from pandapower.conepower.model_components.admittances import Admittances
+from pandapower.conepower.model_components.lines import Lines
 from pandapower.conepower.model_components.vector_variable import VariableSet
 from pandapower.conepower.types.variable_type import VariableType
 
+from pandapower.pypower.idx_brch import F_BUS, T_BUS, RATE_A
 from pandapower.pypower.idx_gen import GEN_STATUS
 from pandapower.pypower.makeSbus import _get_Cg, _get_Sload  # TODO: Think of a better way.
 from pandapower.pypower.makeYbus import branch_vectors, makeYbus
@@ -16,10 +18,10 @@ from pandapower.pypower.opf_model import opf_model
 
 class ModelOpf:
     admittances: Admittances
-    edges: int
     enforce_equalities: bool
     generator_connection_matrix: sparse.csr_matrix
     linear_active_generator_cost: np.ndarray
+    lines: Lines
     loads_active: np.ndarray
     loads_reactive: np.ndarray
     nof_edges: int
@@ -35,7 +37,6 @@ class ModelOpf:
         self.variable_sets = {}
         # self.linear_equality_constraints: LinearEqualityConstraints
         # self.linear_inequality_constraints: LinearInequalityConstraints
-        # self.complex_admittance_matrix: sparse.csr_matrix
 
     @classmethod
     def from_om(cls, om: opf_model, enforce_equalities: bool = False):
@@ -69,7 +70,11 @@ class ModelOpf:
         model.nof_nodes = bus.shape[0]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            model.edges = branch[:, 0:2].astype(np.uint64).tolist()
+            buses_from = branch[:, F_BUS].astype(int)
+            buses_to = branch[:, T_BUS].astype(int)
+            max_flows = ((branch[:, RATE_A].astype(float) / base_mva) ** 2)
+        model.lines = Lines(buses_from, buses_to, max_flows)
+        assert model.lines.nof_lines == model.nof_edges
 
         # loads
         loads = _get_Sload(bus, None) / base_mva
