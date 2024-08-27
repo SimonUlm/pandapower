@@ -26,4 +26,3 @@ class VariableSet:
             assert upper_bounds.size == self.size
             self.upper_bounds = upper_bounds
     # TODO: Introduce offset to determine the offset within the allocated memory.
-    #  In the model classes, rename initial_values into variables.

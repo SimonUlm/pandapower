@@ -4,7 +4,7 @@ import numpy as np
 from scipy import sparse
 
 from pandapower.conepower.model_components.constraints import LinearConstraints, SocpConstraints
-from pandapower.conepower.model_components.submatrix import JabrSubmatrix
+from pandapower.conepower.model_components.submatrices.submatrix_jabr import JabrSubmatrix
 from pandapower.conepower.model_components.vector_variable import VariableSet
 from pandapower.conepower.models.model_opf import ModelOpf
 from pandapower.conepower.types.variable_type import VariableType
