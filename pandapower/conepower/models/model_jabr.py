@@ -3,7 +3,8 @@ from typing import Dict
 import numpy as np
 from scipy import sparse
 
-from pandapower.conepower.model_components.constraints import LinearConstraints, SocpConstraints
+from pandapower.conepower.model_components.constraints.constraints_linear import LinearConstraints
+from pandapower.conepower.model_components.constraints.constraints_socp import SocpConstraints
 from pandapower.conepower.model_components.submatrices.submatrix_jabr import JabrSubmatrix
 from pandapower.conepower.model_components.vector_variable import VariableSet
 from pandapower.conepower.models.model_opf import ModelOpf

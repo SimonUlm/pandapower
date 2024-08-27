@@ -1,12 +1,9 @@
-from typing import List
-
 import numpy as np
 from cvxopt import solvers
 from cvxopt import spmatrix as cvxmatrix
 from cvxopt import matrix as cvxvector
 from scipy import sparse
 
-from pandapower.conepower.model_components.constraints import SocpConstraints
 from pandapower.conepower.models.model_socp import ModelSocp
 
 

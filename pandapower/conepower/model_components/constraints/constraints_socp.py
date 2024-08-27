@@ -3,35 +3,10 @@ from typing import List, Tuple
 import numpy as np
 from scipy import sparse
 
-
-class LinearConstraints:
-    nof_constraints: int
-    matrix: sparse.csr_matrix
-    rhs: np.ndarray
-
-    def __init__(self, matrix: sparse.csr_matrix, rhs: np.ndarray):
-        assert matrix.shape[0] == rhs.shape[0]
-        self.nof_constraints = matrix.shape[0]
-        self.matrix = matrix
-        self.rhs = rhs
-
-    def __add__(self, other):
-        assert other.matrix.shape[1] == self.matrix.shape[1]
-        return LinearConstraints(sparse.vstack((self.matrix, other.matrix), format='csr'),
-                                 np.concatenate((self.rhs, other.rhs)))
-
-    def __iadd__(self, other):
-        return self + other
-
-    def to_cone_formulation(self) -> Tuple[sparse.coo_matrix, np.ndarray, int]:
-        matrix = self.matrix.tocoo()
-        vector = self.rhs
-        dimension = self.nof_constraints
-        return matrix, vector, dimension
+from pandapower.conepower.model_components.constraints.constraints_base import Constraints
 
 
-class SocpConstraints:
-    nof_constraints: int
+class SocpConstraints(Constraints):
     lhs_matrices: List[sparse.lil_matrix]
     lhs_vectors: List[sparse.lil_matrix]
     rhs_scalars: List[float]
@@ -43,7 +18,8 @@ class SocpConstraints:
                  lhs_vectors: List[sparse.lil_matrix] = None,
                  rhs_scalars: List[float] = None):
         # initialize
-        self.nof_constraints = len(lhs_matrices)
+        nof_constraints = len(lhs_matrices)
+        Constraints.__init__(self, nof_constraints)
         if self.nof_constraints == 0:
             assert rhs_vectors is None or len(rhs_vectors) == 0
             assert lhs_vectors is None or len(lhs_vectors) == 0

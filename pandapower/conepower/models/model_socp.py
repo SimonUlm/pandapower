@@ -1,7 +1,8 @@
 import numpy as np
 from scipy import sparse
 
-from pandapower.conepower.model_components.constraints import LinearConstraints, SocpConstraints
+from pandapower.conepower.model_components.constraints.constraints_linear import LinearConstraints
+from pandapower.conepower.model_components.constraints.constraints_socp import SocpConstraints
 from pandapower.conepower.models.model_jabr import ModelJabr
 from pandapower.conepower.types.variable_type import VariableType
 
