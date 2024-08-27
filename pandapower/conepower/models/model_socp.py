@@ -76,6 +76,6 @@ class ModelSocp:
         socp._box_to_linear_constraints(jabr)
 
         # socp constraints
-        socp.socp_constraints = jabr.jabr_constraints
+        socp.socp_constraints = jabr.jabr_constraints + jabr.line_constraints
 
         return socp

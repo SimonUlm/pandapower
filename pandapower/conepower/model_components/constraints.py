@@ -44,6 +44,15 @@ class SocpConstraints:
                  rhs_scalars: List[float] = None):
         # initialize
         self.nof_constraints = len(lhs_matrices)
+        if self.nof_constraints == 0:
+            assert rhs_vectors is None or len(rhs_vectors) == 0
+            assert lhs_vectors is None or len(lhs_vectors) == 0
+            assert rhs_scalars is None or len(rhs_scalars) == 0
+            self.lhs_matrices = []
+            self.rhs_vectors = []
+            self.lhs_vectors = []
+            self.rhs_scalars = []
+            return
         var_dim = lhs_matrices[0].shape[1]
 
         # necessary variables: lhs_matrices

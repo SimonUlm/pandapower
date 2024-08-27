@@ -13,6 +13,7 @@ from pandapower.conepower.types.variable_type import VariableType
 class ModelJabr:
     enforce_equalities: bool
     jabr_constraints: SocpConstraints
+    line_constraints: SocpConstraints
     linear_cost: np.ndarray
     power_flow_equalities: LinearConstraints
     nof_variables: int
@@ -99,16 +100,36 @@ class ModelJabr:
         # add to model
         self.power_flow_equalities = LinearConstraints(pf_matrix, rhs)
 
-    def _add_socp_constraints(self):
-        matrix_list, vector_list = self.submatrix.create_socp_constraints()
+    def _add_jabr_constraints(self):
+        # get constraints without considering the generator variables
+        matrix_list, vector_list = self.submatrix.create_jabr_constraints()
         assert len(matrix_list) == len(vector_list)
+        # consider generator variables
         nof_gen_variables = self.variable_sets[VariableType.PG].size + self.variable_sets[VariableType.QG].size
         empty_gen_matr = sparse.lil_matrix((3, nof_gen_variables), dtype=float)
         empty_gen_vec = sparse.lil_matrix((nof_gen_variables, 1), dtype=float)
         for i in range(len(matrix_list)):
             matrix_list[i] = sparse.hstack((empty_gen_matr, matrix_list[i]), format='lil', dtype=float)
             vector_list[i] = sparse.vstack((empty_gen_vec, vector_list[i]), format='lil', dtype=float)
+        # store in jabr object
         self.jabr_constraints = SocpConstraints(matrix_list, vector_list)
+
+    def _add_line_constraints(self, opf: ModelOpf):
+        # get constraints without considering the generator variables
+        matrix_list, scalar_list = self.submatrix.create_line_constraints(opf.lines.max_apparent_powers,
+                                                                          opf.admittances.y_ff,
+                                                                          opf.admittances.y_ft,
+                                                                          opf.admittances.y_tf,
+                                                                          opf.admittances.y_tt)
+        assert len(matrix_list) == len(scalar_list)
+        # consider generator variables
+        nof_gen_variables = self.variable_sets[VariableType.PG].size + self.variable_sets[VariableType.QG].size
+        empty_gen_matr = sparse.lil_matrix((2, nof_gen_variables), dtype=float)
+        for i in range(len(matrix_list)):
+            matrix_list[i] = sparse.hstack((empty_gen_matr, matrix_list[i]), format='lil', dtype=float)
+        # store in jabr object
+        self.line_constraints = SocpConstraints(lhs_matrices=matrix_list,
+                                                rhs_scalars=scalar_list)
 
     def _recover_angle_at_bus(self,
                               angles: VariableSet,
@@ -159,6 +180,8 @@ class ModelJabr:
 
         # create submatrix
         jabr.submatrix = JabrSubmatrix(opf.admittances.y_bus,
+                                       opf.lines.buses_from,
+                                       opf.lines.buses_to,
                                        jabr.values[(opf.variable_sets[VariableType.PG].size +
                                                     opf.variable_sets[VariableType.QG].size):
                                                    jabr.nof_variables])
@@ -173,8 +196,11 @@ class ModelJabr:
         # power flow equations
         jabr._add_power_flow_equalitites(opf)
 
-        # socp constraints
-        jabr._add_socp_constraints()
+        # jabr constraints
+        jabr._add_jabr_constraints()
+
+        # line constraints
+        jabr._add_line_constraints(opf)
 
         return jabr
 
