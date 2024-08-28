@@ -5,6 +5,8 @@ from scipy import sparse
 
 from pandapower.conepower.model_components.constraints.constraints_linear import LinearConstraints
 from pandapower.conepower.model_components.constraints.constraints_socp import SocpConstraints
+from pandapower.conepower.model_components.costs.generator_cost import GeneratorCost
+from pandapower.conepower.model_components.costs.quadratic_cost import QuadraticCost
 from pandapower.conepower.model_components.submatrices.submatrix_jabr import JabrSubmatrix
 from pandapower.conepower.model_components.vector_variable import VariableSet
 from pandapower.conepower.models.model_opf import ModelOpf
@@ -12,10 +14,10 @@ from pandapower.conepower.types.variable_type import VariableType
 
 
 class ModelJabr:
+    cost: QuadraticCost
     enforce_equalities: bool
     jabr_constraints: SocpConstraints
     line_constraints: SocpConstraints
-    linear_cost: np.ndarray
     power_flow_equalities: LinearConstraints
     nof_variables: int
     submatrix: JabrSubmatrix
@@ -75,8 +77,13 @@ class ModelJabr:
 
     def _add_active_generator_cost(self, opf: ModelOpf):
         nof_active_power_injections = opf.variable_sets[VariableType.PG].size
-        assert opf.linear_active_generator_cost.size == nof_active_power_injections
-        self.linear_cost[0:nof_active_power_injections] += opf.linear_active_generator_cost
+        assert opf.active_generator_cost.nof_generators == nof_active_power_injections
+        linear_vector = np.zeros(self.nof_variables, dtype=float)
+        linear_vector[:nof_active_power_injections] = opf.active_generator_cost.linear_coefficients
+        quadratic_vector = np.zeros(self.nof_variables, dtype=float)
+        quadratic_vector[:nof_active_power_injections] = opf.active_generator_cost.quadratic_coefficients
+        self.cost = QuadraticCost.from_vectors(linear_vector=linear_vector,
+                                               quadratic_vector=quadratic_vector)
 
     def _add_power_flow_equalitites(self, opf: ModelOpf):
         # create matrices for cjj, cjk and sjk
@@ -191,7 +198,6 @@ class ModelJabr:
         jabr.enforce_equalities = opf.enforce_equalities
 
         # cost
-        jabr.linear_cost = np.zeros(jabr.nof_variables)
         jabr._add_active_generator_cost(opf)
 
         # power flow equations

@@ -3,12 +3,13 @@ from scipy import sparse
 
 from pandapower.conepower.model_components.constraints.constraints_linear import LinearConstraints
 from pandapower.conepower.model_components.constraints.constraints_socp import SocpConstraints
+from pandapower.conepower.model_components.costs.quadratic_cost import QuadraticCost
 from pandapower.conepower.models.model_jabr import ModelJabr
 from pandapower.conepower.types.variable_type import VariableType
 
 
 class ModelSocp:
-    linear_cost: np.ndarray
+    cost: QuadraticCost
     linear_equality_constraints: LinearConstraints
     linear_inequality_constraints: LinearConstraints
     nof_variables: int
@@ -67,8 +68,8 @@ class ModelSocp:
         # initial values
         socp.values = jabr.values
 
-        # linear cost
-        socp.linear_cost = jabr.linear_cost
+        # quadratic cost
+        socp.cost = jabr.cost
 
         # linear equality constraints
         socp.linear_equality_constraints = jabr.power_flow_equalities

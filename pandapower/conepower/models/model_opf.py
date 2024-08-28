@@ -5,12 +5,14 @@ import numpy as np
 from scipy import sparse
 
 from pandapower.conepower.model_components.admittances import Admittances
+from pandapower.conepower.model_components.costs.generator_cost import GeneratorCost
 from pandapower.conepower.model_components.lines import Lines
 from pandapower.conepower.model_components.vector_variable import VariableSet
 from pandapower.conepower.types.variable_type import VariableType
 from pandapower.conepower.unit_conversions.per_unit_converter import PerUnitConverter
 
 from pandapower.pypower.idx_brch import F_BUS, T_BUS, RATE_A
+from pandapower.pypower.idx_cost import MODEL, STARTUP, SHUTDOWN, NCOST, COST, POLYNOMIAL
 from pandapower.pypower.idx_gen import GEN_STATUS
 from pandapower.pypower.makeSbus import _get_Cg, _get_Sload  # TODO: Think of a better way.
 from pandapower.pypower.makeYbus import branch_vectors, makeYbus
@@ -18,10 +20,10 @@ from pandapower.pypower.opf_model import opf_model
 
 
 class ModelOpf:
+    active_generator_cost: GeneratorCost
     admittances: Admittances
     enforce_equalities: bool
     generator_connection_matrix: sparse.csr_matrix
-    linear_active_generator_cost: np.ndarray
     lines: Lines
     loads_active: np.ndarray
     loads_reactive: np.ndarray
@@ -90,14 +92,25 @@ class ModelOpf:
         gen_on = gen[on, :]
         model.generator_connection_matrix = _get_Cg(gen_on, bus)
 
-        # linear generator cost
+        # generator cost
         gen_cost = om.ppc['gencost']
-        assert np.all(gen_cost[:, 0] == 2)  # polynomial model
-        assert np.all(gen_cost[:, 1] == 0)  # no startup cost
-        assert np.all(gen_cost[:, 2] == 0)  # no shutdown cost
-        assert np.all(gen_cost[:, 3] == 2)  # linear cost function
-        assert np.all(gen_cost[:, 5] == 0)  # no affine cost function
-        model.linear_active_generator_cost = converter.from_linear_generator_cost(gen_cost[:, 4] * base_mva)
-        assert np.size(model.linear_active_generator_cost) == np.size(model.variable_sets[VariableType.PG].size)
+        nof_generators = model.variable_sets[VariableType.PG].size
+        assert gen_cost.shape[0] == nof_generators
+        assert np.all(gen_cost[:, MODEL] == POLYNOMIAL)  # polynomial model
+        assert np.all(gen_cost[:, STARTUP] == 0)  # no startup cost
+        assert np.all(gen_cost[:, SHUTDOWN] == 0)  # no shutdown cost
+        # define quadratic cost
+        if np.all(gen_cost[:, NCOST] == 3):
+            quadratic_coefficients = converter.from_quadratic_generator_cost(gen_cost[:, COST].astype(float))
+            linear_coefficients = converter.from_linear_generator_cost(gen_cost[:, COST + 1].astype(float))
+            assert np.all(gen_cost[:, COST + 2] == 0)
+        elif np.all(gen_cost[:, NCOST] == 2):
+            quadratic_coefficients = np.zeros(nof_generators, dtype=float)
+            linear_coefficients = converter.from_linear_generator_cost(gen_cost[:, COST].astype(float))
+            assert np.all(gen_cost[:, COST + 1] == 0)
+        else:
+            assert False
+        model.active_generator_cost = GeneratorCost(quadratic_coefficients=quadratic_coefficients,
+                                                    linear_coefficients=linear_coefficients)
 
         return model

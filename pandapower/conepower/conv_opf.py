@@ -9,6 +9,7 @@ from pandapower.conepower.models.model_socp import ModelSocp
 from pandapower.conepower.solvers.socp import socp_execute
 from pandapower.conepower.types.relaxation_type import RelaxationType
 from pandapower.conepower.types.optimization_type import OptimizationType
+from pandapower.conepower.types.variable_type import VariableType  # required for debugging
 
 from pandapower.pypower.idx_brch import MU_ANGMAX
 from pandapower.pypower.idx_bus import MU_VMIN

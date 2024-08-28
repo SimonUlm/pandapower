@@ -7,7 +7,8 @@ from scipy import sparse
 from pandapower.conepower.models.model_socp import ModelSocp
 
 
-def _sparse_matrix_to_cvxopt(matrix: sparse.coo_matrix) -> cvxmatrix:
+def _sparse_matrix_to_cvxopt(matrix) -> cvxmatrix:
+    matrix = matrix.tocoo()
     return cvxmatrix(matrix.data.tolist(),
                      matrix.row.tolist(),
                      matrix.col.tolist(),
@@ -20,8 +21,8 @@ def _dense_vector_to_cvxopt(vector: np.ndarray) -> cvxvector:
 
 def socp_execute(model: ModelSocp) -> np.ndarray:
 
-    # objective function
-    c = _dense_vector_to_cvxopt(model.linear_cost)
+    # linear part of objective function
+    c = _dense_vector_to_cvxopt(model.cost.linear_vector)
 
     # inequalities
     g_ineq, h_ineq, dim_ineq = model.linear_inequality_constraints.to_cone_formulation()
@@ -46,10 +47,15 @@ def socp_execute(model: ModelSocp) -> np.ndarray:
     # initial values
     # TODO: Initial values für Slack und Socp werden auch genötigt.
 
-    # solve
-    sol = solvers.conelp(c=c,
-                         G=g, h=h, dims=dims,
-                         A=a, b=b)
+    if model.cost.is_linear():
+        sol = solvers.conelp(c=c,
+                             G=g, h=h, dims=dims,
+                             A=a, b=b)
+    else:
+        p = _sparse_matrix_to_cvxopt(model.cost.quadratic_matrix)
+        sol = solvers.coneqp(P=p, q=c,
+                             G=g, h=h, dims=dims,
+                             A=a, b=b)
 
     # solution vector
     assert sol['x'] is not None

@@ -12,6 +12,9 @@ class PerUnitConverter:
     def from_linear_generator_cost(self, cost_per_mw: np.ndarray[float]) -> np.ndarray[float]:
         return cost_per_mw * self._ref_power_mva
 
+    def from_quadratic_generator_cost(self, cost_per_mw_sq: np.ndarray[float]) -> np.ndarray[float]:
+        return cost_per_mw_sq * self._ref_power_mva ** 2
+
     def from_power(self, power_mva: np.ndarray[float]) -> np.ndarray[float]:
         return power_mva / self._ref_power_mva
 
