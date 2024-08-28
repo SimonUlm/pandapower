@@ -124,12 +124,47 @@ class JabrSubmatrix(HermitianSubmatrix):
         # return matrices and vectors
         return matrix_list, vector_list
 
-    def create_line_constraints(self,
-                                max_apparent_powers: np.ndarray,
-                                y_ff: np.ndarray,
-                                y_ft: np.ndarray,
-                                y_tf: np.ndarray,
-                                y_tt: np.ndarray) ->\
+    def create_line_angle_constraints(self,
+                                      max_angle_differences: np.ndarray,
+                                      min_angle_differences: np.ndarray) ->\
+            Tuple[sparse.csr_matrix, np.ndarray]:
+        # verify
+        assert min_angle_differences.size == self._nof_edges
+        assert max_angle_differences.size == self._nof_edges
+        assert np.all(min_angle_differences < math.pi / 2)
+        assert np.all(max_angle_differences > -math.pi / 2)
+
+        # filter out angles that are too big or too small to be actual constraints
+        min_mask = min_angle_differences > -math.pi / 2
+        max_mask = max_angle_differences < math.pi / 2
+
+        # calculate tangens and store in diagonal matrix
+        min_tangens = sparse.diags(np.tan(min_angle_differences[min_mask]))
+        max_tangens = sparse.diags(np.tan(max_angle_differences[max_mask]))
+
+        # get identity matrices
+        min_identity = sparse.diags(np.ones(self._nof_edges, dtype=float)[min_mask])
+        max_identity = sparse.diags(np.ones(self._nof_edges, dtype=float)[max_mask])
+
+        # calculate matrices
+        min_matrix = (min_tangens @ self._edges_to_real_off_diag_ft[min_mask, :] -
+                      min_identity @ self._edges_to_imag_off_diag_ft[min_mask, :])
+        max_matrix = (max_tangens @ self._edges_to_real_off_diag_ft[max_mask, :] -
+                      max_identity @ self._edges_to_imag_off_diag_ft[max_mask, :])
+
+        # combine matrices
+        inequality_matrix = sparse.vstack((min_matrix,
+                                           -max_matrix), format='csr')
+        inequality_rhs = np.zeros(min_mask.sum() + max_mask.sum(), dtype=float)
+
+        return inequality_matrix, inequality_rhs
+
+    def create_line_power_constraints(self,
+                                      max_apparent_powers: np.ndarray,
+                                      y_ff: np.ndarray,
+                                      y_ft: np.ndarray,
+                                      y_tf: np.ndarray,
+                                      y_tt: np.ndarray) ->\
             Tuple[List[sparse.lil_matrix], List[float]]:
         # create two diagonal matrices (one real and one imaginary) for each admittance vector
         real_y_ff = sparse.diags(np.real(y_ff))

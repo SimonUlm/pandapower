@@ -11,7 +11,7 @@ from pandapower.conepower.model_components.vector_variable import VariableSet
 from pandapower.conepower.types.variable_type import VariableType
 from pandapower.conepower.unit_conversions.per_unit_converter import PerUnitConverter
 
-from pandapower.pypower.idx_brch import F_BUS, T_BUS, RATE_A
+from pandapower.pypower.idx_brch import F_BUS, T_BUS, RATE_A, ANGMIN, ANGMAX
 from pandapower.pypower.idx_cost import MODEL, STARTUP, SHUTDOWN, NCOST, COST, POLYNOMIAL
 from pandapower.pypower.idx_gen import GEN_STATUS
 from pandapower.pypower.makeSbus import _get_Cg, _get_Sload  # TODO: Think of a better way.
@@ -76,7 +76,9 @@ class ModelOpf:
             buses_from = branch[:, F_BUS].astype(int)
             buses_to = branch[:, T_BUS].astype(int)
             max_flows = converter.from_power(branch[:, RATE_A].astype(float))
-        model.lines = Lines(buses_from, buses_to, max_flows)
+            max_angles = np.radians(branch[:, ANGMAX].astype(float))
+            min_angles = np.radians(branch[:, ANGMIN].astype(float))
+        model.lines = Lines(buses_from, buses_to, max_flows, max_angles, min_angles)
 
         # calculate unique number of edges in case there exist more than one line between two nodes
         edges = np.column_stack((model.lines.buses_from, model.lines.buses_to))

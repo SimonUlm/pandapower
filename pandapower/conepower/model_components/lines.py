@@ -4,13 +4,24 @@ import numpy as np
 class Lines:
     buses_from: np.ndarray[int]
     buses_to: np.ndarray[int]
+    max_angle_differences: np.ndarray[float]
     max_apparent_powers: np.ndarray[float]
+    min_angle_differences: np.ndarray[float]
     nof_lines: int
 
-    def __init__(self, buses_from: np.ndarray[int], buses_to: np.ndarray[int], max_apparent_powers: np.ndarray[float]):
+    def __init__(self,
+                 buses_from: np.ndarray[int],
+                 buses_to: np.ndarray[int],
+                 max_apparent_powers: np.ndarray[float],
+                 max_angle_differences: np.ndarray[float],
+                 min_angle_differences: np.ndarray[float]):
         self.nof_lines = max_apparent_powers.size
         assert buses_from.size == self.nof_lines
         assert buses_to.size == self.nof_lines
+        assert max_angle_differences.size == self.nof_lines
+        assert min_angle_differences.size == self.nof_lines
         self.buses_from = buses_from
         self.buses_to = buses_to
         self.max_apparent_powers = max_apparent_powers
+        self.max_angle_differences = max_angle_differences
+        self.min_angle_differences = min_angle_differences
