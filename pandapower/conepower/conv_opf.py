@@ -6,6 +6,7 @@ from numpy import zeros, c_, shape
 from pandapower.conepower.models.model_opf import ModelOpf
 from pandapower.conepower.models.model_jabr import ModelJabr
 from pandapower.conepower.models.model_socp import ModelSocp
+from pandapower.conepower.postprocessing import postprocess
 from pandapower.conepower.solvers.socp import socp_execute
 from pandapower.conepower.types.relaxation_type import RelaxationType
 from pandapower.conepower.types.optimization_type import OptimizationType
@@ -62,26 +63,29 @@ def conv_opf(ppc, ppopt, relaxation_str):
     # execute the relaxed OPF
     assert opt_model is not None
     if opt_type is OptimizationType.SOCP:
-        x = socp_execute(opt_model)
-    else:
-        assert False
-
-    # execute the OPF
-    # results, success, raw = opf_execute(om, ppopt)
-
-    # recover solution
-    if relaxation_type is RelaxationType.JABR:
-        np.copyto(jabr.values, x.flatten())
-        variable_sets, variables = jabr.to_opf_variables()
+        sol = socp_execute(opt_model)
+        success = sol['status'] == 'optimal'
     else:
         assert False
 
     # finish preparing output
     et = perf_counter() - t0
 
-    # results['et'] = et
-    # results['success'] = success
-    # results['raw'] = raw
+    result = ppc
 
-    assert False
-    return results
+    # recover solution
+    if relaxation_type is RelaxationType.JABR:
+        np.copyto(jabr.values, np.array(sol['x']).flatten())
+        variable_sets, variables = jabr.to_opf_variables()
+        #np.copyto(model.values, variables)  # TODO: Refactor
+        result = postprocess(ppc,
+                             om,
+                             et,
+                             success,
+                             sol['primal objective'],
+                             variables,
+                             variable_sets)
+    else:
+        assert False
+
+    return result

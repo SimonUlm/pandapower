@@ -57,6 +57,4 @@ def socp_execute(model: ModelSocp) -> np.ndarray:
                              G=g, h=h, dims=dims,
                              A=a, b=b)
 
-    # solution vector
-    assert sol['x'] is not None
-    return np.array(sol['x'])
+    return sol
