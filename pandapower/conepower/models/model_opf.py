@@ -8,6 +8,7 @@ from pandapower.conepower.model_components.admittances import Admittances
 from pandapower.conepower.model_components.lines import Lines
 from pandapower.conepower.model_components.vector_variable import VariableSet
 from pandapower.conepower.types.variable_type import VariableType
+from pandapower.conepower.unit_conversions.per_unit_converter import PerUnitConverter
 
 from pandapower.pypower.idx_brch import F_BUS, T_BUS, RATE_A
 from pandapower.pypower.idx_gen import GEN_STATUS
@@ -66,18 +67,21 @@ class ModelOpf:
         y_bus, _, _ = makeYbus(base_mva, bus, branch)
         model.admittances = Admittances(y_bus, y_ff, y_ft, y_tf, y_tt)
 
+        # create converter to convert everything into p.u.
+        converter = PerUnitConverter(base_mva)
+
         model.nof_edges = branch.shape[0]
         model.nof_nodes = bus.shape[0]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             buses_from = branch[:, F_BUS].astype(int)
             buses_to = branch[:, T_BUS].astype(int)
-            max_flows = ((branch[:, RATE_A].astype(float) / base_mva) ** 2)
+            max_flows = converter.from_power(branch[:, RATE_A].astype(float))
         model.lines = Lines(buses_from, buses_to, max_flows)
         assert model.lines.nof_lines == model.nof_edges
 
         # loads
-        loads = _get_Sload(bus, None) / base_mva
+        loads = converter.from_power(_get_Sload(bus, None))
         model.loads_active = np.real(loads)
         model.loads_reactive = np.imag(loads)
 
@@ -93,7 +97,7 @@ class ModelOpf:
         assert np.all(gen_cost[:, 2] == 0)  # no shutdown cost
         assert np.all(gen_cost[:, 3] == 2)  # linear cost function
         assert np.all(gen_cost[:, 5] == 0)  # no affine cost function
-        model.linear_active_generator_cost = np.copy(gen_cost[:, 4])
+        model.linear_active_generator_cost = converter.from_linear_generator_cost(gen_cost[:, 4] * base_mva)
         assert np.size(model.linear_active_generator_cost) == np.size(model.variable_sets[VariableType.PG].size)
 
         return model
