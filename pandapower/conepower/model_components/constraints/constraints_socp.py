@@ -78,7 +78,7 @@ class SocpConstraints(Constraints):
         matrix = -sparse.vstack([sparse.vstack((self.rhs_vectors[i].transpose(),
                                                 self.lhs_matrices[i])) for i in range(self.nof_constraints)],
                                 format='coo')
-        vectors = sparse.vstack([sparse.vstack((self.rhs_scalars[i],
+        vectors = sparse.vstack([sparse.vstack((sparse.lil_matrix([[self.rhs_scalars[i]]]),
                                                 self.lhs_vectors[i])) for i in range(self.nof_constraints)],
                                 format='coo').todense()
         dimensions = [1 + self.lhs_matrices[i].shape[0] for i in range(self.nof_constraints)]
