@@ -27,23 +27,26 @@ class JabrSubmatrix(HermitianSubmatrix):
         mask = nodes_from > nodes_to
         temp_nodes_from = np.where(np.invert(mask), nodes_from, nodes_to)
         temp_nodes_to = np.where(mask, nodes_from, nodes_to)
-        sorted_indices = np.lexsort((temp_nodes_to, temp_nodes_from))
+        branches = np.arange(self._nof_edges)
+        sorted_branches = np.lexsort((temp_nodes_to, temp_nodes_from))
+        data_index_per_branch = np.zeros(self._nof_edges)  # initialize
+        data_index_per_branch[sorted_branches] = np.arange(self._nof_edges)
 
         # diagonal ff
         diag_ff = sparse.coo_matrix((np.ones(self._nof_edges, dtype=int),
-                                     (np.arange(self._nof_edges), nodes_from)),
+                                     (branches, nodes_from)),
                                     shape=(self._nof_edges, self.dim))
         self._edges_to_diag_ff = sparse.hstack((diag_ff, dummy_off_diag, dummy_off_diag), format='csc')
 
         # diagonal tt
         diag_tt = sparse.coo_matrix((np.ones(self._nof_edges, dtype=int),
-                                     (np.arange(self._nof_edges), nodes_to)),
+                                     (branches, nodes_to)),
                                     shape=(self._nof_edges, self.dim))
         self._edges_to_diag_tt = sparse.hstack((diag_tt, dummy_off_diag, dummy_off_diag), format='csc')
 
         # real off-diagonal ft and tf
         real_off_diag_ft = sparse.coo_matrix((np.ones(self._nof_edges, dtype=int),
-                                              (np.arange(self._nof_edges), sorted_indices)),
+                                              (branches, data_index_per_branch)),
                                              shape=(self._nof_edges, self._nof_edges))
         real_off_diag_ft = sparse.hstack((dummy_diag, real_off_diag_ft, dummy_off_diag), format='csc')
         self._edges_to_real_off_diag_ft = real_off_diag_ft
@@ -53,7 +56,7 @@ class JabrSubmatrix(HermitianSubmatrix):
         off_diag_data = np.ones(self._nof_edges)
         off_diag_data[mask] = -1
         imag_off_diag_ft = sparse.coo_matrix((off_diag_data,
-                                              (np.arange(self._nof_edges), sorted_indices)),
+                                              (branches, data_index_per_branch)),
                                              shape=(self._nof_edges, self._nof_edges))
         imag_off_diag_ft = sparse.hstack((dummy_diag, dummy_off_diag, imag_off_diag_ft), format='csc')
         self._edges_to_imag_off_diag_ft = imag_off_diag_ft
