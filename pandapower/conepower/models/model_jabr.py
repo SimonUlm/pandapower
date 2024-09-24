@@ -15,7 +15,6 @@ from pandapower.conepower.types.variable_type import VariableType
 
 class ModelJabr:
     cost: QuadraticCost
-    enforce_equalities: bool
     jabr_constraints: SocpConstraints
     line_constraints: SocpConstraints
     power_flow_equalities: LinearConstraints
@@ -193,9 +192,6 @@ class ModelJabr:
                                        jabr.values[(opf.variable_sets[VariableType.PG].size +
                                                     opf.variable_sets[VariableType.QG].size):
                                                    jabr.nof_variables])
-
-        # save for later whether equality should be enforced for variables with equal lower and upper bound
-        jabr.enforce_equalities = opf.enforce_equalities
 
         # cost
         jabr._add_active_generator_cost(opf)

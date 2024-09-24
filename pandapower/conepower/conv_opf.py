@@ -18,7 +18,7 @@ from pandapower.pypower.opf_args import opf_args2
 from pandapower.pypower.opf_setup import opf_setup
 
 
-def conv_opf(ppc, ppopt, relaxation_str, enforce_equalities):
+def conv_opf(ppc, ppopt, relaxation_str):
     # initialize
     t0 = perf_counter()
 
@@ -40,7 +40,7 @@ def conv_opf(ppc, ppopt, relaxation_str, enforce_equalities):
     om = opf_setup(ppc, ppopt)
 
     # convert to own model
-    model = ModelOpf.from_om(om, enforce_equalities)
+    model = ModelOpf.from_om(om)
 
     # get the type of convex relaxation
     relaxation_type = RelaxationType.from_str(relaxation_str)

@@ -42,7 +42,7 @@ class ModelOpf:
         # self.linear_inequality_constraints: LinearInequalityConstraints
 
     @classmethod
-    def from_om(cls, om: opf_model, enforce_equalities: bool = False):
+    def from_om(cls, om: opf_model):
         # initialize
         model = cls()
         model.nof_variables = om.var['N']
@@ -58,9 +58,6 @@ class ModelOpf:
                                   om.var['data']['vu'][set_name],
                                   model.values[starting_index:ending_index])
             model.variable_sets[var_type] = var_set
-
-        # save for later whether equality should be enforced for variables with equal lower and upper bound
-        model.enforce_equalities = enforce_equalities
 
         # admittance matrix and number of nodes and edges
         base_mva, bus, gen, branch = \

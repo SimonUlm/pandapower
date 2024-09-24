@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 def to_ppc(net, calculate_voltage_angles=True, trafo_model="t", switch_rx_ratio=2,
            check_connectivity=True, voltage_depend_loads=False, init="results", mode=None,
-           take_slack_vm_limits=True):
+           take_slack_vm_limits=True, enforce_ext_grid_vm=True):
     """
     This function converts a pandapower net to a pypower case file.
 
@@ -115,6 +115,9 @@ def to_ppc(net, calculate_voltage_angles=True, trafo_model="t", switch_rx_ratio=
         logger.error("to_ppc() does not consider voltage depend loads. The z and i parts of "
                      "voltage depend loads are set to additional columns 13 and 14 but the p/q part"
                      " is still unchanged.")
+
+    if "enforce_ext_grid_vm" not in net["_options"]:
+        net["_options"]["enforce_ext_grid_vm"] = enforce_ext_grid_vm
 
     #  do the conversion
     _, ppci = _pd2ppc(net)

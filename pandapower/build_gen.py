@@ -128,6 +128,9 @@ def _build_pp_ext_grid(net, ppc, f, t):
         add_q_constraints(net, "ext_grid", eg_is, ppc, f, t, delta)
         add_p_constraints(net, "ext_grid", eg_is, ppc, f, t, delta)
 
+        # constrain voltage magnitudes of reference buses to fixed setpoints
+        if not net["_options"]["enforce_ext_grid_vm"]:
+            return
         if "controllable" in net["ext_grid"]:
             # if we do and one of them is false, do this only for the ones, where it is false
             eg_constrained = net.ext_grid[eg_is][~net.ext_grid.controllable]
