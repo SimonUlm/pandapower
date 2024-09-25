@@ -9,58 +9,63 @@ from pandapower.conepower.model_components.submatrices.submatrix_base import Her
 
 class JabrSubmatrix(HermitianSubmatrix):
 
-    _edges_to_diag_ff: sparse.csc_matrix
-    _edges_to_diag_tt: sparse.csc_matrix
-    _edges_to_imag_off_diag_ft: sparse.csc_matrix
-    _edges_to_imag_off_diag_tf: sparse.csc_matrix
-    _edges_to_real_off_diag_ft: sparse.csc_matrix
-    _edges_to_real_off_diag_tf: sparse.csc_matrix
+    _lines_to_diag_ff: sparse.csc_matrix
+    _lines_to_diag_tt: sparse.csc_matrix
+    _lines_to_imag_off_diag_ft: sparse.csc_matrix
+    _lines_to_imag_off_diag_tf: sparse.csc_matrix
+    _lines_to_real_off_diag_ft: sparse.csc_matrix
+    _lines_to_real_off_diag_tf: sparse.csc_matrix
+    _nof_lines: int
 
     def _create_transformation_matrices(self, nodes_from: np.ndarray, nodes_to: np.ndarray):
         # initialize
-        assert nodes_from.size == self._nof_edges
-        assert nodes_to.size == self._nof_edges
-        dummy_diag = sparse.csc_matrix((self._nof_edges, self.dim), dtype=int)
-        dummy_off_diag = sparse.csc_matrix((self._nof_edges, self._nof_edges), dtype=int)
+        self._nof_lines = nodes_from.size
+        assert nodes_to.size == self._nof_lines
+        assert self._nof_unique_edges <= self._nof_lines
+        dummy_diag = sparse.csc_matrix((self._nof_lines, self.dim), dtype=int)
+        dummy_off_diag = sparse.csc_matrix((self._nof_lines, self._nof_unique_edges), dtype=int)
 
         # get how the order of edges relates to the order of variables in submatrix
         mask = nodes_from > nodes_to
         temp_nodes_from = np.where(np.invert(mask), nodes_from, nodes_to)
         temp_nodes_to = np.where(mask, nodes_from, nodes_to)
-        branches = np.arange(self._nof_edges)
-        sorted_branches = np.lexsort((temp_nodes_to, temp_nodes_from))
-        data_index_per_branch = np.zeros(self._nof_edges)  # initialize
-        data_index_per_branch[sorted_branches] = np.arange(self._nof_edges)
+        lines = np.column_stack((temp_nodes_from, temp_nodes_to))
+        line_indices = np.arange(self._nof_lines)
+        sorted_line_indices = np.lexsort((temp_nodes_to, temp_nodes_from))
+        sorted_lines = lines[sorted_line_indices]
+        _, counts = np.unique(sorted_lines, axis=0, return_counts=True)
+        data_index_per_line = np.empty(self._nof_lines, dtype=int)
+        data_index_per_line[sorted_line_indices] = np.repeat(np.arange(self._nof_unique_edges, dtype=int), counts)
 
         # diagonal ff
-        diag_ff = sparse.coo_matrix((np.ones(self._nof_edges, dtype=int),
-                                     (branches, nodes_from)),
-                                    shape=(self._nof_edges, self.dim))
-        self._edges_to_diag_ff = sparse.hstack((diag_ff, dummy_off_diag, dummy_off_diag), format='csc')
+        diag_ff = sparse.coo_matrix((np.ones(self._nof_lines, dtype=int),
+                                     (line_indices, nodes_from)),
+                                    shape=(self._nof_lines, self.dim))
+        self._lines_to_diag_ff = sparse.hstack((diag_ff, dummy_off_diag, dummy_off_diag), format='csc')
 
         # diagonal tt
-        diag_tt = sparse.coo_matrix((np.ones(self._nof_edges, dtype=int),
-                                     (branches, nodes_to)),
-                                    shape=(self._nof_edges, self.dim))
-        self._edges_to_diag_tt = sparse.hstack((diag_tt, dummy_off_diag, dummy_off_diag), format='csc')
+        diag_tt = sparse.coo_matrix((np.ones(self._nof_lines, dtype=int),
+                                     (line_indices, nodes_to)),
+                                    shape=(self._nof_lines, self.dim))
+        self._lines_to_diag_tt = sparse.hstack((diag_tt, dummy_off_diag, dummy_off_diag), format='csc')
 
         # real off-diagonal ft and tf
-        real_off_diag_ft = sparse.coo_matrix((np.ones(self._nof_edges, dtype=int),
-                                              (branches, data_index_per_branch)),
-                                             shape=(self._nof_edges, self._nof_edges))
+        real_off_diag_ft = sparse.coo_matrix((np.ones(self._nof_lines, dtype=int),
+                                              (line_indices, data_index_per_line)),
+                                             shape=(self._nof_lines, self._nof_unique_edges))
         real_off_diag_ft = sparse.hstack((dummy_diag, real_off_diag_ft, dummy_off_diag), format='csc')
-        self._edges_to_real_off_diag_ft = real_off_diag_ft
-        self._edges_to_real_off_diag_tf = real_off_diag_ft
+        self._lines_to_real_off_diag_ft = real_off_diag_ft
+        self._lines_to_real_off_diag_tf = real_off_diag_ft
 
         # imaginary off-diagonal ft and tf
-        off_diag_data = np.ones(self._nof_edges)
+        off_diag_data = np.ones(self._nof_lines)
         off_diag_data[mask] = -1
         imag_off_diag_ft = sparse.coo_matrix((off_diag_data,
-                                              (branches, data_index_per_branch)),
-                                             shape=(self._nof_edges, self._nof_edges))
+                                              (line_indices, data_index_per_line)),
+                                             shape=(self._nof_lines, self._nof_unique_edges))
         imag_off_diag_ft = sparse.hstack((dummy_diag, dummy_off_diag, imag_off_diag_ft), format='csc')
-        self._edges_to_imag_off_diag_ft = imag_off_diag_ft
-        self._edges_to_imag_off_diag_tf = -imag_off_diag_ft
+        self._lines_to_imag_off_diag_ft = imag_off_diag_ft
+        self._lines_to_imag_off_diag_tf = -imag_off_diag_ft
 
     def __init__(self,
                  adjacency_matrix: sparse.csr_matrix,
@@ -96,9 +101,9 @@ class JabrSubmatrix(HermitianSubmatrix):
 
     def create_jabr_constraints(self) -> Tuple[List[sparse.lil_matrix], List[sparse.lil_matrix]]:
         # initialize lists and calculate offsets
-        size = self.dim + self._nof_edges * 2
-        matrix_list = [sparse.lil_matrix((3, size), dtype=float) for _ in range(self._nof_edges)]
-        vector_list = [sparse.lil_matrix((size, 1), dtype=float) for _ in range(self._nof_edges)]
+        size = self.dim + self._nof_unique_edges * 2
+        matrix_list = [sparse.lil_matrix((3, size), dtype=float) for _ in range(self._nof_unique_edges)]
+        vector_list = [sparse.lil_matrix((size, 1), dtype=float) for _ in range(self._nof_unique_edges)]
 
         # define the matrices and vectors one by one (there has to be a better way...)
         for i in range(self.dim, self._complex_size):
@@ -137,27 +142,27 @@ class JabrSubmatrix(HermitianSubmatrix):
         imag_y_tt = sparse.diags(np.imag(y_tt))
 
         # first and second row of ft constraint for each line, hence we obtain two matrices
-        socp_ft_first_rows: sparse.csr_matrix = (real_y_ff @ self._edges_to_diag_ff +
-                                                 real_y_ft @ self._edges_to_real_off_diag_ft +
-                                                 imag_y_ft @ self._edges_to_imag_off_diag_ft)
-        socp_ft_second_rows: sparse.csr_matrix = (-imag_y_ff @ self._edges_to_diag_ff +
-                                                  -imag_y_ft @ self._edges_to_real_off_diag_ft +
-                                                  real_y_ft @ self._edges_to_imag_off_diag_ft)
+        socp_ft_first_rows: sparse.csr_matrix = (real_y_ff @ self._lines_to_diag_ff +
+                                                 real_y_ft @ self._lines_to_real_off_diag_ft +
+                                                 imag_y_ft @ self._lines_to_imag_off_diag_ft)
+        socp_ft_second_rows: sparse.csr_matrix = (-imag_y_ff @ self._lines_to_diag_ff +
+                                                  -imag_y_ft @ self._lines_to_real_off_diag_ft +
+                                                  real_y_ft @ self._lines_to_imag_off_diag_ft)
 
         # first and second row of tf constraint for each line, hence we obtain two matrices
-        socp_tf_first_rows: sparse.csr_matrix = (real_y_tt @ self._edges_to_diag_tt +
-                                                 real_y_tf @ self._edges_to_real_off_diag_tf +
-                                                 imag_y_tf @ self._edges_to_imag_off_diag_tf)
-        socp_tf_second_rows: sparse.csr_matrix = (-imag_y_tt @ self._edges_to_diag_tt +
-                                                  -imag_y_tf @ self._edges_to_real_off_diag_tf +
-                                                  real_y_tf @ self._edges_to_imag_off_diag_tf)
+        socp_tf_first_rows: sparse.csr_matrix = (real_y_tt @ self._lines_to_diag_tt +
+                                                 real_y_tf @ self._lines_to_real_off_diag_tf +
+                                                 imag_y_tf @ self._lines_to_imag_off_diag_tf)
+        socp_tf_second_rows: sparse.csr_matrix = (-imag_y_tt @ self._lines_to_diag_tt +
+                                                  -imag_y_tf @ self._lines_to_real_off_diag_tf +
+                                                  real_y_tf @ self._lines_to_imag_off_diag_tf)
 
         # initialize constraints
         matrix_list = []
         scalar_list = []
 
         # compose constraints
-        for i in range(self._nof_edges):
+        for i in range(self._nof_unique_edges):
             # check whether line is unconstrained
             max_power = max_apparent_powers[i]
             if math.isnan(max_power) or math.isinf(max_power) or max_power == 0:

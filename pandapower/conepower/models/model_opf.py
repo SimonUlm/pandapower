@@ -27,14 +27,14 @@ class ModelOpf:
     lines: Lines
     loads_active: np.ndarray
     loads_reactive: np.ndarray
-    nof_edges: int
+    nof_unique_edges: int
     nof_nodes: int
     nof_variables: int
     values: np.ndarray
     variable_sets: Dict[VariableType, VariableSet]
 
     def __init__(self):
-        self.nof_edges = 0
+        self.nof_unique_edges = 0
         self.nof_nodes = 0
         self.nof_variables = 0
         self.variable_sets = {}
@@ -69,7 +69,7 @@ class ModelOpf:
         # create converter to convert everything into p.u.
         converter = PerUnitConverter(base_mva)
 
-        model.nof_edges = branch.shape[0]
+        # get number of nodes and a list of all lines
         model.nof_nodes = bus.shape[0]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -77,7 +77,12 @@ class ModelOpf:
             buses_to = branch[:, T_BUS].astype(int)
             max_flows = converter.from_power(branch[:, RATE_A].astype(float))
         model.lines = Lines(buses_from, buses_to, max_flows)
-        assert model.lines.nof_lines == model.nof_edges
+
+        # calculate unique number of edges in case there exist more than one line between two nodes
+        edges = np.column_stack((model.lines.buses_from, model.lines.buses_to))
+        unique_edges = np.unique(np.sort(edges, axis=1), axis=0)
+        model.nof_unique_edges = unique_edges.shape[0]
+        assert model.lines.nof_lines >= model.nof_unique_edges
 
         # loads
         loads = converter.from_power(_get_Sload(bus, None))

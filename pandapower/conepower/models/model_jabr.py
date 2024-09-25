@@ -59,8 +59,8 @@ class ModelJabr:
     def _add_cjk_variables(self, opf: ModelOpf, starting_index: int) -> int:
         # for now, assume all angles are zero
         assert not opf.variable_sets[VariableType.UANG].values.any()
-        ending_index = starting_index + opf.nof_edges
-        var_set = VariableSet(values_data=np.ones(opf.nof_edges),
+        ending_index = starting_index + opf.nof_unique_edges
+        var_set = VariableSet(values_data=np.ones(opf.nof_unique_edges),
                               values_allocated_memory=self.values[starting_index:ending_index])
         self.variable_sets[VariableType.CJK] = var_set
         return ending_index
@@ -68,8 +68,8 @@ class ModelJabr:
     def _add_sjk_variables(self, opf: ModelOpf, starting_index: int) -> int:
         # for now, assume all angles are zero
         assert not opf.variable_sets[VariableType.UANG].values.any()
-        ending_index = starting_index + opf.nof_edges
-        var_set = VariableSet(values_data=np.zeros(opf.nof_edges),
+        ending_index = starting_index + opf.nof_unique_edges
+        var_set = VariableSet(values_data=np.zeros(opf.nof_unique_edges),
                               values_allocated_memory=self.values[starting_index:ending_index])
         self.variable_sets[VariableType.SJK] = var_set
         return ending_index
@@ -174,7 +174,7 @@ class ModelJabr:
         jabr.nof_variables = (opf.variable_sets[VariableType.PG].size +
                               opf.variable_sets[VariableType.QG].size +
                               opf.nof_nodes +
-                              opf.nof_edges * 2)
+                              opf.nof_unique_edges * 2)
 
         # variables and box constraints
         jabr.values = np.empty(jabr.nof_variables)

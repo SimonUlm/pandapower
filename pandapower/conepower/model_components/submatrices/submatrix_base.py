@@ -5,15 +5,15 @@ from scipy import sparse
 
 
 class HermitianSubmatrix:
-    _complex_size: int  # number of complex-valued variables stored in upper triangle
+    _complex_size: int  # number of complex-valued variables in upper triangle
     _data: sparse.coo_array
     dim: int
     _full_off_diag_to_antisym_upper_tri: sparse.csc_matrix
     _full_off_diag_to_sym_upper_tri: sparse.csc_matrix
     _half_index_matrix: sparse.csr_matrix
-    _nof_edges: int
+    _nof_unique_edges: int
     _offset_complex_to_real: int
-    _real_size: int  # number of real-valued variables stored in upper triangle
+    _real_size: int  # number of real-valued variables in upper triangle
 
     @staticmethod
     def _validate_matrix(matrix: sparse.csr_matrix):
@@ -54,10 +54,10 @@ class HermitianSubmatrix:
             warnings.simplefilter("ignore")
             half_index_matrix = half_index_matrix.astype(dtype=int, casting='unsafe')
             full_index_matrix = full_index_matrix.astype(dtype=int, casting='unsafe')
-        self._nof_edges = half_index_matrix.size
-        self._offset_complex_to_real = self._nof_edges
-        self._complex_size = self.dim + self._nof_edges
-        self._real_size = self.dim + self._nof_edges * 2
+        self._nof_unique_edges = half_index_matrix.size
+        self._offset_complex_to_real = self._nof_unique_edges
+        self._complex_size = self.dim + self._nof_unique_edges
+        self._real_size = self.dim + self._nof_unique_edges * 2
 
         # create half index matrix that indicates where (in the coo array) the respective matrix entries are stored
         starting_index = self.dim
@@ -80,12 +80,12 @@ class HermitianSubmatrix:
         # create full index matrix that indicates where the respective matrix entries would have been stored
         # if the full matrix were saved instead of only the upper triangle
         starting_index = self.dim
-        ending_index = self.dim + self._nof_edges * 2
+        ending_index = self.dim + self._nof_unique_edges * 2
         full_index_matrix.data = np.arange(starting_index, ending_index)
 
         # map half index matrix to full index matrix while disregarding the diagonal
-        mapping_matrix = sparse.lil_matrix((self._nof_edges, self._nof_edges * 2), dtype=int)
-        indices = np.arange(self._nof_edges)
+        mapping_matrix = sparse.lil_matrix((self._nof_unique_edges, self._nof_unique_edges * 2), dtype=int)
+        indices = np.arange(self._nof_unique_edges)
         pos_array = self._remove_lower_triangle(full_index_matrix).data
         pos_array[:] -= self.dim  # disregard diagonal
         neg_array = self._remove_lower_triangle(full_index_matrix.transpose().tocsr()).data
