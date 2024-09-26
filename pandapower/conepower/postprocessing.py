@@ -16,6 +16,7 @@ def postprocess(ppc: Dict,
                 elapsed_time: float,
                 success: bool,
                 objective_value: float,
+                constant_costs: np.ndarray[float],
                 variables: np.ndarray[float],
                 variables_sets: Dict[VariableType, VariableSet]) -> Dict:
     # initialize
@@ -24,7 +25,7 @@ def postprocess(ppc: Dict,
     result["et"] = elapsed_time
     result["success"] = success
     result["raw"] = None
-    result["f"] = objective_value
+    result["f"] = objective_value + np.sum(constant_costs)
     result["x"] = variables
     result["mu"] = None
 

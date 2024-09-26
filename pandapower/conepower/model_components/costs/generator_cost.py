@@ -3,12 +3,14 @@ import numpy as np
 
 class GeneratorCost:
     nof_generators: int
+    constants: np.ndarray
     linear_coefficients: np.ndarray
     quadratic_coefficients: np.ndarray
 
     def __init__(self,
                  linear_coefficients: np.ndarray,
-                 quadratic_coefficients: np.ndarray = None):
+                 quadratic_coefficients: np.ndarray = None,
+                 constants: np.ndarray = None):
         # initialize
         self.nof_generators = linear_coefficients.size
 
@@ -21,6 +23,13 @@ class GeneratorCost:
             self.quadratic_coefficients = quadratic_coefficients
         else:
             self.quadratic_coefficients = np.zeros(self.nof_generators, dtype=float)
+
+        # constants
+        if constants is not None:
+            assert constants.size == self.nof_generators
+            self.constants = constants
+        else:
+            self.constants = np.zeros(self.nof_generators, dtype=float)
 
     def is_linear(self):
         return np.all(self.quadratic_coefficients == 0)

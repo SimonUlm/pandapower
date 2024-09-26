@@ -16,6 +16,7 @@ from pandapower.pypower.idx_brch import MU_ANGMAX
 from pandapower.pypower.idx_bus import MU_VMIN
 from pandapower.pypower.idx_gen import MU_QMIN
 from pandapower.pypower.opf_args import opf_args2
+from pandapower.pypower.opf_model import opf_model
 from pandapower.pypower.opf_setup import opf_setup
 
 
@@ -78,13 +79,14 @@ def conv_opf(ppc, ppopt, relaxation_str):
         np.copyto(jabr.values, np.array(sol['x']).flatten())
         variable_sets, variables = jabr.to_opf_variables()
         #np.copyto(model.values, variables)  # TODO: Refactor
-        result = postprocess(ppc,
-                             om,
-                             et,
-                             success,
-                             sol['primal objective'],
-                             variables,
-                             variable_sets)
+        result = postprocess(ppc=ppc,
+                             om=om,
+                             elapsed_time=et,
+                             success=success,
+                             objective_value=sol['primal objective'],
+                             constant_costs=model.active_generator_cost.constants,
+                             variables=variables,
+                             variables_sets= variable_sets)
     else:
         assert False
 

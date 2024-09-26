@@ -105,14 +105,15 @@ class ModelOpf:
         if np.all(gen_cost[:, NCOST] == 3):
             quadratic_coefficients = converter.from_quadratic_generator_cost(gen_cost[:, COST].astype(float))
             linear_coefficients = converter.from_linear_generator_cost(gen_cost[:, COST + 1].astype(float))
-            assert np.all(gen_cost[:, COST + 2] == 0)
+            constants = gen_cost[:, COST + 2].astype(float)
         elif np.all(gen_cost[:, NCOST] == 2):
             quadratic_coefficients = np.zeros(nof_generators, dtype=float)
             linear_coefficients = converter.from_linear_generator_cost(gen_cost[:, COST].astype(float))
-            assert np.all(gen_cost[:, COST + 1] == 0)
+            constants = gen_cost[:, COST + 1].astype(float)
         else:
             assert False
         model.active_generator_cost = GeneratorCost(quadratic_coefficients=quadratic_coefficients,
-                                                    linear_coefficients=linear_coefficients)
+                                                    linear_coefficients=linear_coefficients,
+                                                    constants=constants)
 
         return model
