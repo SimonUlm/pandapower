@@ -162,7 +162,7 @@ class JabrSubmatrix(HermitianSubmatrix):
         scalar_list = []
 
         # compose constraints
-        for i in range(self._nof_unique_edges):
+        for i in range(self._nof_lines):
             # check whether line is unconstrained
             max_power = max_apparent_powers[i]
             if math.isnan(max_power) or math.isinf(max_power) or max_power == 0:
