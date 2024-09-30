@@ -16,5 +16,9 @@ class Constraints(ABC):
         pass
 
     @abstractmethod
+    def prepend_variable(self):
+        pass
+
+    @abstractmethod
     def to_cone_formulation(self):
         pass

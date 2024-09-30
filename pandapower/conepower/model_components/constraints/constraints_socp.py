@@ -74,6 +74,18 @@ class SocpConstraints(Constraints):
     def __iadd__(self, other):
         return self + other
 
+    def prepend_variable(self):
+        for i in range(self.nof_constraints):
+            matrix = self.lhs_matrices[i]
+            self.lhs_matrices[i] = sparse.hstack((sparse.csr_matrix((matrix.shape[0], 1), dtype=float), matrix),
+                                                 format='lil')
+        if self.rhs_vectors is None:
+            return
+        for i in range(self.nof_constraints):
+            vector = self.rhs_vectors[i]
+            self.rhs_vectors[i] = sparse.vstack((sparse.csr_matrix((1, 1), dtype=float), vector),
+                                                 format='lil')
+
     def to_cone_formulation(self) -> Tuple[sparse.coo_matrix, np.ndarray, List[int]]:
         matrix = -sparse.vstack([sparse.vstack((self.rhs_vectors[i].transpose(),
                                                 self.lhs_matrices[i])) for i in range(self.nof_constraints)],

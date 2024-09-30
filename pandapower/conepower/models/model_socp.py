@@ -15,6 +15,7 @@ from pandapower.conepower.types.variable_type import VariableType
 
 class ModelSocp:
     cost: QuadraticCost
+    _has_auxiliary_variable: bool
     linear_equality_constraints: LinearConstraints
     linear_inequality_constraints: LinearConstraints
     nof_variables: int
@@ -22,6 +23,7 @@ class ModelSocp:
     values: np.ndarray
 
     def __init__(self, nof_variables: int):
+        self._has_auxiliary_variable = False
         self.nof_variables = nof_variables
 
     def _box_to_linear_constraints(self, jabr: ModelJabr):
@@ -65,6 +67,27 @@ class ModelSocp:
             return
         self.linear_equality_constraints += LinearConstraints(ub_matrix[mask_inv, :], ub_vector[mask_inv])
 
+    def _qp_to_lp(self):
+        # add auxiliary variable
+        self._has_auxiliary_variable = True
+        self.nof_variables += 1
+        temp_values = self.values
+        self.values = np.empty(self.nof_variables, dtype=float)
+        self.values[1:] = temp_values
+
+        # update constraints to include the auxiliary variable
+        self.linear_equality_constraints.prepend_variable()
+        self.linear_inequality_constraints.prepend_variable()
+        self.socp_constraints.prepend_variable()
+
+        # add socp constraints that replace the quadratic cost function
+        self.socp_constraints += self.cost.to_socp_constraints()
+
+        # replace quadratic cost function by linear function that only depends on auxiliary variable
+        linear_cost = np.empty(self.nof_variables, dtype=float)
+        linear_cost[0] = 1
+        self.cost = QuadraticCost(linear_cost)
+
     @staticmethod
     def _sparse_matrix_to_cvxopt(matrix) -> cvxmatrix:
         matrix = matrix.tocoo()
@@ -96,6 +119,10 @@ class ModelSocp:
 
         # socp constraints
         socp.socp_constraints = jabr.jabr_constraints + jabr.line_constraints
+
+        # transform into linear socp
+        if not socp.cost.is_linear():
+            socp._qp_to_lp()
 
         return socp
 
@@ -138,6 +165,11 @@ class ModelSocp:
                                  A=a, b=b)
 
         success = sol['status'] == 'optimal'
+        if not success:
+            # noinspection PyTypeChecker
+            return success, None, None
         objective = sol['primal objective']
         resulting_values = np.array(sol['x']).flatten()
+        if self._has_auxiliary_variable:
+            resulting_values = resulting_values[1:]
         return success, objective, resulting_values

@@ -25,6 +25,10 @@ class LinearConstraints(Constraints):
     def __iadd__(self, other):
         return self + other
 
+    def prepend_variable(self):
+        self.matrix = sparse.hstack((sparse.csr_matrix((self.matrix.shape[0], 1), dtype=float), self.matrix),
+                                    format='csr')
+
     def to_cone_formulation(self) -> Tuple[sparse.coo_matrix, np.ndarray, int]:
         matrix = self.matrix.tocoo()
         vector = self.rhs

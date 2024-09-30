@@ -1,6 +1,8 @@
 import numpy as np
 from scipy import sparse
 
+from pandapower.conepower.model_components.constraints.constraints_socp import SocpConstraints
+
 
 class QuadraticCost:
     quadratic_matrix: sparse.csr_matrix  # TODO: Document that f(x) = x^T * P * x + q^T * x!!!
@@ -18,6 +20,11 @@ class QuadraticCost:
             self.quadratic_matrix = quadratic_matrix
         else:
             self.quadratic_matrix = sparse.csr_matrix((nof_variables, nof_variables), dtype=float)
+
+    def _is_quadratic_matrix_diagonal(self) -> bool:
+        _, first_occurrences = np.unique(self.quadratic_matrix.indptr[::-1], return_index=True)
+        expected_indices = (len(self.quadratic_matrix.indptr) - 1 - first_occurrences)[:-1]
+        return np.all(np.equal(expected_indices, self.quadratic_matrix.indices))
 
     @classmethod
     def from_vectors(cls,
@@ -37,3 +44,27 @@ class QuadraticCost:
 
     def is_linear(self):
         return self.quadratic_matrix.size == 0
+
+    def to_socp_constraints(self) -> SocpConstraints:
+        assert not self.is_linear()
+        assert self._is_quadratic_matrix_diagonal()
+        nof_variables = self.linear_vector.size
+        # lhs matrix
+        chol = self.quadratic_matrix.sqrt()
+        lhs_matrix_first_row = sparse.hstack((sparse.lil_matrix(-1, shape=(1, 1), dtype=float),
+                                              sparse.lil_matrix(self.linear_vector)), format='lil') / 2
+        lhs_matrix_other_rows = sparse.hstack((sparse.lil_matrix((nof_variables, 1), dtype=float),
+                                               chol), format='lil')
+        lhs_matrix = sparse.vstack((lhs_matrix_first_row, lhs_matrix_other_rows), format='lil')
+        # lhs_vector
+        lhs_vector = sparse.lil_matrix((nof_variables + 1, 1), dtype=float)
+        lhs_vector[0, 0] = 0.5
+        # rhs vector
+        rhs_vector = -lhs_matrix_first_row.transpose(copy=True)
+        # rhs_scalar
+        rhs_scalar = 0.5
+        # compose
+        return SocpConstraints(lhs_matrices=[lhs_matrix],
+                               lhs_vectors=[lhs_vector],
+                               rhs_vectors=[rhs_vector],
+                               rhs_scalars=[rhs_scalar])
