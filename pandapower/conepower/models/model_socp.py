@@ -56,7 +56,7 @@ class ModelSocp:
 
         # equalities
         mask_inv = np.invert(mask)
-        if not mask.any():
+        if not mask_inv.any():
             return
         self.linear_equality_constraints += LinearConstraints(ub_matrix[mask_inv, :], ub_vector[mask_inv])
 
