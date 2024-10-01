@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import numpy as np
 from scipy import sparse
 
@@ -44,6 +46,13 @@ class QuadraticCost:
 
     def is_linear(self):
         return self.quadratic_matrix.size == 0
+
+    # TODO: typing of return value
+    def scale(self, scaling_factor: float):
+        new_cost = deepcopy(self)
+        new_cost.quadratic_matrix *= scaling_factor
+        new_cost.linear_vector *= scaling_factor
+        return new_cost
 
     def to_socp_constraints(self) -> SocpConstraints:
         assert not self.is_linear()

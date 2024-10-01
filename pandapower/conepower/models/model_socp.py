@@ -13,6 +13,13 @@ from pandapower.conepower.models.model_jabr import ModelJabr
 from pandapower.conepower.types.variable_type import VariableType
 
 
+SCALING = 1e-4  # same as in PIPS
+MAXITERS = 100  # cvxopt default: 300
+ABSTOL = 1e-7   # cvxopt default: 1e-7
+RELTOL = 1e-6   # cvxopt default: 1e-6
+FEASTOL = 1e-7  # cvxopt default: 1e-7
+
+
 class ModelSocp:
     cost: QuadraticCost
     _has_auxiliary_variable: bool
@@ -109,7 +116,7 @@ class ModelSocp:
         socp.values = jabr.values
 
         # quadratic cost
-        socp.cost = jabr.cost
+        socp.cost = jabr.cost.scale(SCALING)
 
         # linear equality constraints
         socp.linear_equality_constraints = jabr.power_flow_equalities
@@ -153,6 +160,11 @@ class ModelSocp:
         # initial values
         # TODO: Initial values für Slack und Socp werden auch genötigt.
 
+        solvers.options['maxiters'] = MAXITERS
+        solvers.options['abstol'] = ABSTOL
+        solvers.options['reltol'] = RELTOL
+        solvers.options['feastol'] = FEASTOL
+
         if self.cost.is_linear():
             sol = solvers.conelp(c=c,
                                  G=g, h=h, dims=dims,
@@ -168,7 +180,7 @@ class ModelSocp:
         if not success:
             # noinspection PyTypeChecker
             return success, None, None
-        objective = sol['primal objective']
+        objective = sol['primal objective'] / SCALING
         resulting_values = np.array(sol['x']).flatten()
         if self._has_auxiliary_variable:
             resulting_values = resulting_values[1:]
