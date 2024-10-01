@@ -131,7 +131,8 @@ class ModelSocp:
                                  G=g, h=h, dims=dims,
                                  A=a, b=b)
         else:
-            p = self._sparse_matrix_to_cvxopt(self.cost.quadratic_matrix)
+            # multiply quadratic matrix by two, since cvxopt expects f(x) = (1/2) * x^T * P * x + q^T * x
+            p = self._sparse_matrix_to_cvxopt(self.cost.quadratic_matrix) * 2
             sol = solvers.coneqp(P=p, q=c,
                                  G=g, h=h, dims=dims,
                                  A=a, b=b)

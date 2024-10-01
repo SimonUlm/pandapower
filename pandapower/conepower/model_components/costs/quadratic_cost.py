@@ -3,7 +3,7 @@ from scipy import sparse
 
 
 class QuadraticCost:
-    quadratic_matrix: sparse.csr_matrix  # TODO: Document that f(x) = 1/2 * x^T * P * x + q^T * x!!!
+    quadratic_matrix: sparse.csr_matrix  # TODO: Document that f(x) = x^T * P * x + q^T * x!!!
     linear_vector: np.ndarray
 
     def __init__(self,
@@ -30,7 +30,7 @@ class QuadraticCost:
         # quadratic case
         nof_variables = linear_vector.size
         assert quadratic_vector.size == nof_variables
-        diagonal_matrix = sparse.diags(quadratic_vector * 2).tocsr()
+        diagonal_matrix = sparse.diags(quadratic_vector).tocsr()
         diagonal_matrix.eliminate_zeros()
         return cls(linear_vector,
                    diagonal_matrix)
