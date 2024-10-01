@@ -1,4 +1,9 @@
+from typing import Tuple
+
 import numpy as np
+from cvxopt import solvers
+from cvxopt import spmatrix as cvxmatrix
+from cvxopt import matrix as cvxvector
 from scipy import sparse
 
 from pandapower.conepower.model_components.constraints.constraints_linear import LinearConstraints
@@ -60,6 +65,18 @@ class ModelSocp:
             return
         self.linear_equality_constraints += LinearConstraints(ub_matrix[mask_inv, :], ub_vector[mask_inv])
 
+    @staticmethod
+    def _sparse_matrix_to_cvxopt(matrix) -> cvxmatrix:
+        matrix = matrix.tocoo()
+        return cvxmatrix(matrix.data.tolist(),
+                         matrix.row.tolist(),
+                         matrix.col.tolist(),
+                         size=matrix.shape)
+
+    @staticmethod
+    def _dense_vector_to_cvxopt(vector: np.ndarray) -> cvxvector:
+        return cvxvector(vector)
+
     @classmethod
     def from_jabr(cls, jabr: ModelJabr):
         # initialize
@@ -81,3 +98,45 @@ class ModelSocp:
         socp.socp_constraints = jabr.jabr_constraints + jabr.line_constraints
 
         return socp
+
+    def solve(self) -> Tuple[bool, float, np.ndarray]:
+        # linear part of objective function
+        c = self._dense_vector_to_cvxopt(self.cost.linear_vector)
+
+        # inequalities
+        g_ineq, h_ineq, dim_ineq = self.linear_inequality_constraints.to_cone_formulation()
+
+        # socp
+        g_socp, h_socp, dims_socp = self.socp_constraints.to_cone_formulation()
+
+        # combine cone constraints
+        g = self._sparse_matrix_to_cvxopt(sparse.vstack((g_ineq, g_socp), format='coo'))
+        h = self._dense_vector_to_cvxopt(np.concatenate((h_ineq, h_socp)))
+        dims = {
+            'l': dim_ineq,
+            'q': dims_socp,
+            's': []
+        }
+
+        # equalities
+        a_eq, b_eq, _ = self.linear_equality_constraints.to_cone_formulation()
+        a = self._sparse_matrix_to_cvxopt(a_eq)
+        b = self._dense_vector_to_cvxopt(b_eq)
+
+        # initial values
+        # TODO: Initial values für Slack und Socp werden auch genötigt.
+
+        if self.cost.is_linear():
+            sol = solvers.conelp(c=c,
+                                 G=g, h=h, dims=dims,
+                                 A=a, b=b)
+        else:
+            p = self._sparse_matrix_to_cvxopt(self.cost.quadratic_matrix)
+            sol = solvers.coneqp(P=p, q=c,
+                                 G=g, h=h, dims=dims,
+                                 A=a, b=b)
+
+        success = sol['status'] == 'optimal'
+        objective = sol['primal objective']
+        resulting_values = np.array(sol['x']).flatten()
+        return success, objective, resulting_values

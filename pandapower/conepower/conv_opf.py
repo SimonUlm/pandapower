@@ -7,7 +7,6 @@ from pandapower.conepower.models.model_opf import ModelOpf
 from pandapower.conepower.models.model_jabr import ModelJabr
 from pandapower.conepower.models.model_socp import ModelSocp
 from pandapower.conepower.postprocessing import postprocess
-from pandapower.conepower.solvers.socp import socp_execute
 from pandapower.conepower.types.relaxation_type import RelaxationType
 from pandapower.conepower.types.optimization_type import OptimizationType
 from pandapower.conepower.types.variable_type import VariableType  # required for debugging
@@ -16,7 +15,6 @@ from pandapower.pypower.idx_brch import MU_ANGMAX
 from pandapower.pypower.idx_bus import MU_VMIN
 from pandapower.pypower.idx_gen import MU_QMIN
 from pandapower.pypower.opf_args import opf_args2
-from pandapower.pypower.opf_model import opf_model
 from pandapower.pypower.opf_setup import opf_setup
 
 
@@ -64,8 +62,7 @@ def conv_opf(ppc, ppopt, relaxation_str):
     # execute the relaxed OPF
     assert opt_model is not None
     if opt_type is OptimizationType.SOCP:
-        sol = socp_execute(opt_model)
-        success = sol['status'] == 'optimal'
+        success, objective, resulting_variables = opt_model.solve()
     else:
         assert False
 
@@ -76,17 +73,17 @@ def conv_opf(ppc, ppopt, relaxation_str):
 
     # recover solution
     if relaxation_type is RelaxationType.JABR:
-        np.copyto(jabr.values, np.array(sol['x']).flatten())
+        np.copyto(jabr.values, resulting_variables)
         variable_sets, variables = jabr.to_opf_variables()
         #np.copyto(model.values, variables)  # TODO: Refactor
         result = postprocess(ppc=ppc,
                              om=om,
                              elapsed_time=et,
                              success=success,
-                             objective_value=sol['primal objective'],
+                             objective_value=objective,
                              constant_costs=model.active_generator_cost.constants,
                              variables=variables,
-                             variables_sets= variable_sets)
+                             variables_sets=variable_sets)
     else:
         assert False
 
