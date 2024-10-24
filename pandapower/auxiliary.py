@@ -1737,14 +1737,13 @@ def _init_rundcopp_options(net, check_connectivity, switch_rx_ratio, delta, traf
                      use_umfpack=use_umfpack, permc_spec=permc_spec)
 
 
-def _init_runconvopp_options(net, check_connectivity, delta, init, numba,
+def _init_runconvopp_options(net, calculate_voltage_angles, check_connectivity, init, numba,
                              relaxation="jabr", enforce_ext_grid_vm=True,
                              **kwargs):
     if numba:
         numba = _check_if_numba_is_installed()
     mode = "opf"
     ac = True
-    calculate_voltage_angles = True
     switch_rx_ratio = 2
     trafo3w_losses = "hv"
     consider_line_temperature = False
