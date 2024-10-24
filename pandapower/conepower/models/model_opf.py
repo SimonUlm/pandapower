@@ -101,12 +101,14 @@ class ModelOpf:
         assert np.all(gen_cost[:, MODEL] == POLYNOMIAL)  # polynomial model
         assert np.all(gen_cost[:, STARTUP] == 0)  # no startup cost
         assert np.all(gen_cost[:, SHUTDOWN] == 0)  # no shutdown cost
+        # filter out empty cost functions
+        mask = gen_cost[:, NCOST] > 0
         # define quadratic cost
-        if np.all(gen_cost[:, NCOST] == 3):
+        if np.all(gen_cost[mask, NCOST] == 3):
             quadratic_coefficients = converter.from_quadratic_generator_cost(gen_cost[:, COST].astype(float))
             linear_coefficients = converter.from_linear_generator_cost(gen_cost[:, COST + 1].astype(float))
             constants = gen_cost[:, COST + 2].astype(float)
-        elif np.all(gen_cost[:, NCOST] == 2):
+        elif np.all(gen_cost[mask, NCOST] == 2):
             quadratic_coefficients = np.zeros(nof_generators, dtype=float)
             linear_coefficients = converter.from_linear_generator_cost(gen_cost[:, COST].astype(float))
             constants = gen_cost[:, COST + 1].astype(float)
