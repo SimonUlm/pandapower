@@ -22,7 +22,6 @@ from pandapower.pypower.opf_model import opf_model
 class ModelOpf:
     active_generator_cost: GeneratorCost
     admittances: Admittances
-    enforce_equalities: bool
     generator_connection_matrix: sparse.csr_matrix
     lines: Lines
     loads_active: np.ndarray
