@@ -124,12 +124,12 @@ class JabrSubmatrix(HermitianSubmatrix):
         # return matrices and vectors
         return matrix_list, vector_list
 
-    def create_line_constraints(self,
-                                max_apparent_powers: np.ndarray,
-                                y_ff: np.ndarray,
-                                y_ft: np.ndarray,
-                                y_tf: np.ndarray,
-                                y_tt: np.ndarray) ->\
+    def create_line_apparent_power_constraints(self,
+                                               max_apparent_powers: np.ndarray,
+                                               y_ff: np.ndarray,
+                                               y_ft: np.ndarray,
+                                               y_tf: np.ndarray,
+                                               y_tt: np.ndarray) ->\
             Tuple[List[sparse.lil_matrix], List[float]]:
         # create two diagonal matrices (one real and one imaginary) for each admittance vector
         real_y_ff = sparse.diags(np.real(y_ff))
