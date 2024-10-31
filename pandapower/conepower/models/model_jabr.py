@@ -11,6 +11,7 @@ from pandapower.conepower.model_components.costs.quadratic_cost import Quadratic
 from pandapower.conepower.model_components.submatrices.submatrix_jabr import JabrSubmatrix
 from pandapower.conepower.model_components.vector_variable import VariableSet
 from pandapower.conepower.models.model_opf import ModelOpf
+from pandapower.conepower.types.line_constraint_type import LineConstraintType
 from pandapower.conepower.types.variable_type import VariableType
 
 
@@ -18,6 +19,7 @@ class ModelJabr:
     cost: QuadraticCost
     jabr_constraints: SocpConstraints
     line_apparent_power_constraints: SocpConstraints
+    line_current_constraints: LinearConstraints
     power_flow_equalities: LinearConstraints
     nof_variables: int
     submatrix: JabrSubmatrix
@@ -27,6 +29,7 @@ class ModelJabr:
     def __init__(self):
         self.jabr_constraints = SocpConstraints()
         self.line_apparent_power_constraints = SocpConstraints()
+        self.line_current_constraints = LinearConstraints()
         self.power_flow_equalities = LinearConstraints()
         self.nof_variables = 0
         self.variable_sets = {}
@@ -127,7 +130,7 @@ class ModelJabr:
 
     def _add_line_apparent_power_constraints(self, opf: ModelOpf):
         # get constraints without considering the generator variables
-        matrix_list, scalar_list = self.submatrix.create_line_apparent_power_constraints(opf.lines.max_apparent_powers,
+        matrix_list, scalar_list = self.submatrix.create_line_apparent_power_constraints(opf.lines.max_line_flows,
                                                                                          opf.admittances.y_ff,
                                                                                          opf.admittances.y_ft,
                                                                                          opf.admittances.y_tf,
@@ -141,6 +144,22 @@ class ModelJabr:
         # store in jabr object
         self.line_apparent_power_constraints = SocpConstraints(lhs_matrices=matrix_list,
                                                                rhs_scalars=scalar_list)
+
+    def _add_line_current_constraints(self, opf: ModelOpf):
+        # get constraints without considering the generator variables
+        matrix, rhs = self.submatrix.create_line_current_constraints(opf.lines.max_line_flows,
+                                                                     opf.admittances.y_ff,
+                                                                     opf.admittances.y_ft,
+                                                                     opf.admittances.y_tf,
+                                                                     opf.admittances.y_tt)
+        nof_constraints = rhs.size
+        assert matrix.shape[0] == nof_constraints
+        # consider generator variables
+        nof_gen_variables = self.variable_sets[VariableType.PG].size + self.variable_sets[VariableType.QG].size
+        empty_gen_matr = sparse.csr_matrix((nof_constraints, nof_gen_variables), dtype=float)
+        matrix = sparse.hstack((empty_gen_matr, matrix), format='csr')
+        # store in jabr object
+        self.line_current_constraints = LinearConstraints(matrix=matrix, rhs=rhs)
 
     def _recover_angle_at_bus(self,
                               angles: VariableSet,
@@ -223,7 +242,12 @@ class ModelJabr:
         jabr._add_jabr_constraints()
 
         # line constraints
-        jabr._add_line_apparent_power_constraints(opf)
+        if opf.lines.constraint_type is LineConstraintType.APPARENT_POWER:
+            jabr._add_line_apparent_power_constraints(opf)
+        elif opf.lines.constraint_type is LineConstraintType.CURRENT:
+            jabr._add_line_current_constraints(opf)
+        else:
+            assert False
 
         return jabr
 

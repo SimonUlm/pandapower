@@ -7,6 +7,7 @@ from pandapower.conepower.models.model_opf import ModelOpf
 from pandapower.conepower.models.model_jabr import ModelJabr
 from pandapower.conepower.models.model_socp import ModelSocp
 from pandapower.conepower.postprocessing import postprocess
+from pandapower.conepower.types.line_constraint_type import LineConstraintType
 from pandapower.conepower.types.relaxation_type import RelaxationType
 from pandapower.conepower.types.optimization_type import OptimizationType
 from pandapower.conepower.types.variable_type import VariableType  # required for debugging
@@ -18,7 +19,7 @@ from pandapower.pypower.opf_args import opf_args2
 from pandapower.pypower.opf_setup import opf_setup
 
 
-def conv_opf(ppc, ppopt, relaxation_str):
+def conv_opf(ppc, ppopt, relaxation_str, flow_limit_str):
     # initialize
     t0 = perf_counter()
 
@@ -40,7 +41,8 @@ def conv_opf(ppc, ppopt, relaxation_str):
     om = opf_setup(ppc, ppopt)
 
     # convert to own model
-    model = ModelOpf.from_om(om)
+    model = ModelOpf.from_om(om,
+                             LineConstraintType.from_str(flow_limit_str))
 
     # get the type of convex relaxation
     relaxation_type = RelaxationType.from_str(relaxation_str)

@@ -537,13 +537,13 @@ def rundcopp(net, verbose=False, check_connectivity=True, suppress_warnings=True
 
 
 def runconvopp(net, verbose=False, calculate_voltage_angles=True, check_connectivity=True, suppress_warnings=True,
-               init="flat", numba=True, relaxation="jabr", enforce_ext_grid_vm=True,
+               init="flat", numba=True, relaxation="jabr", enforce_ext_grid_vm=True, flow_limit='I',
                **kwargs):
     _init_runconvopp_options(net,
                              calculate_voltage_angles=calculate_voltage_angles,
                              check_connectivity=check_connectivity,
                              init=init, numba=numba,
-                             relaxation=relaxation, enforce_ext_grid_vm=enforce_ext_grid_vm,
+                             relaxation=relaxation, enforce_ext_grid_vm=enforce_ext_grid_vm, flow_limit=flow_limit,
                              **kwargs)
     _check_bus_index_and_print_warning_if_high(net)
     _check_gen_index_and_print_warning_if_high(net)

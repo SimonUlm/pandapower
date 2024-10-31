@@ -126,9 +126,11 @@ class ModelSocp:
 
         # linear inequality constraints
         socp._box_to_linear_constraints(jabr)
+        socp.linear_inequality_constraints += jabr.line_current_constraints
 
         # socp constraints
-        socp.socp_constraints = jabr.jabr_constraints + jabr.line_apparent_power_constraints
+        socp.socp_constraints = jabr.jabr_constraints
+        socp.socp_constraints += jabr.line_apparent_power_constraints
 
         # transform into linear socp
         if not socp.cost.is_linear():

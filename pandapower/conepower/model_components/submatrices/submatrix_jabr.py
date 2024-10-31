@@ -178,3 +178,47 @@ class JabrSubmatrix(HermitianSubmatrix):
 
         # noinspection PyTypeChecker
         return matrix_list, scalar_list
+
+    def create_line_current_constraints(self,
+                                        max_currents: np.ndarray,
+                                        y_ff: np.ndarray,
+                                        y_ft: np.ndarray,
+                                        y_tf: np.ndarray,
+                                        y_tt: np.ndarray) ->\
+            Tuple[sparse.csr_matrix, np.ndarray]:
+        # transform admittance vectors to diagonal matrices for better readability
+        y_ff: sparse.dia_matrix = sparse.diags(y_ff)
+        y_ft: sparse.dia_matrix = sparse.diags(y_ft)
+        y_tf: sparse.dia_matrix = sparse.diags(y_tf)
+        y_tt: sparse.dia_matrix = sparse.diags(y_tt)
+
+        # calculate the matrices with  |•|^2 applied to each entry
+        y_ff_sq = np.real(y_ff @ y_ff.conj())
+        y_ft_sq = np.real(y_ft @ y_ft.conj())
+        y_tf_sq = np.real(y_tf @ y_tf.conj())
+        y_tt_sq = np.real(y_tt @ y_tt.conj())
+
+        # calculate more auxiliary matrices
+        y_fft = y_ff @ y_ft.conj()
+        real_y_fft = np.real(y_fft)
+        imag_y_fft = np.imag(y_fft)
+        y_ttf = y_tt @ y_tf.conj()
+        real_y_ttf = np.real(y_ttf)
+        imag_y_ttf = np.imag(y_ttf)
+
+        # compose matrix
+        ft_constraints = (y_ff_sq @ self._lines_to_diag_ff
+                          + y_ft_sq @ self._lines_to_diag_tt
+                          + 2 * (real_y_fft @ self._lines_to_real_off_diag_ft
+                                 - imag_y_fft @ self._lines_to_imag_off_diag_ft))
+        tf_constraints = (y_tt_sq @ self._lines_to_diag_tt
+                          + y_tf_sq @ self._lines_to_diag_ff
+                          + 2 * (real_y_ttf @ self._lines_to_real_off_diag_tf
+                                 - imag_y_ttf @ self._lines_to_imag_off_diag_tf))
+        matrix = sparse.vstack((ft_constraints, tf_constraints), format='csr')
+
+        # compose rhs
+        max_currents_sq = np.square(max_currents)
+        rhs = np.concatenate((max_currents_sq, max_currents_sq))
+
+        return matrix, rhs

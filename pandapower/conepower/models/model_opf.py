@@ -8,6 +8,7 @@ from pandapower.conepower.model_components.admittances import Admittances
 from pandapower.conepower.model_components.costs.generator_cost import GeneratorCost
 from pandapower.conepower.model_components.lines import Lines
 from pandapower.conepower.model_components.vector_variable import VariableSet
+from pandapower.conepower.types.line_constraint_type import LineConstraintType
 from pandapower.conepower.types.variable_type import VariableType
 from pandapower.conepower.unit_conversions.per_unit_converter import PerUnitConverter
 
@@ -41,7 +42,7 @@ class ModelOpf:
         # self.linear_inequality_constraints: LinearInequalityConstraints
 
     @classmethod
-    def from_om(cls, om: opf_model):
+    def from_om(cls, om: opf_model, line_constraint_type: LineConstraintType = LineConstraintType.CURRENT):
         # initialize
         model = cls()
         model.nof_variables = om.var['N']
@@ -75,7 +76,7 @@ class ModelOpf:
             buses_from = branch[:, F_BUS].astype(int)
             buses_to = branch[:, T_BUS].astype(int)
             max_flows = converter.from_power(branch[:, RATE_A].astype(float))
-        model.lines = Lines(buses_from, buses_to, max_flows)
+        model.lines = Lines(buses_from, buses_to, max_flows, line_constraint_type)
 
         # calculate unique number of edges in case there exist more than one line between two nodes
         edges = np.column_stack((model.lines.buses_from, model.lines.buses_to))

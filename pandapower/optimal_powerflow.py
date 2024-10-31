@@ -63,19 +63,20 @@ def _optimal_powerflow(net, verbose, suppress_warnings, **kwargs):
 
     # select a different routine, depending on whether a convex relaxation should be applied
     relaxation = net["_options"]["relaxation"]
+    flow_limit = net["_options"]["flow_limit"]
     if relaxation is None:
-        def routine(_ppci, _ppopt, _relaxation): return opf(_ppci, _ppopt)
+        def routine(_ppci, _ppopt, _relaxation, _flow_limit): return opf(_ppci, _ppopt)
     else:
-        def routine(_ppci, _ppopt, _relaxation): return conv_opf(_ppci, _ppopt, relaxation)
+        def routine(_ppci, _ppopt, _relaxation, _flow_limit): return conv_opf(_ppci, _ppopt, _relaxation, _flow_limit)
 
     if init == "pf":
         ppci = _run_pf_before_opf(net, ppci)
     if suppress_warnings:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            result = routine(ppci, ppopt, relaxation)
+            result = routine(ppci, ppopt, relaxation, flow_limit)
     else:
-        result = routine(ppci, ppopt, relaxation)
+        result = routine(ppci, ppopt, relaxation, flow_limit)
     #    net["_ppc_opf"] = result
 
     if verbose:
