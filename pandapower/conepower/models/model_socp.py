@@ -30,6 +30,9 @@ class ModelSocp:
     values: np.ndarray
 
     def __init__(self, nof_variables: int):
+        self.linear_equality_constraints = LinearConstraints()
+        self.linear_inequality_constraints: LinearConstraints()
+        self.socp_constraints = SocpConstraints()
         self._has_auxiliary_variable = False
         self.nof_variables = nof_variables
 

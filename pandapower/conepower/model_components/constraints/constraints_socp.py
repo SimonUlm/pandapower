@@ -7,17 +7,23 @@ from pandapower.conepower.model_components.constraints.constraints_base import C
 
 
 class SocpConstraints(Constraints):
-    lhs_matrices: List[sparse.lil_matrix]
-    lhs_vectors: List[sparse.lil_matrix]
-    rhs_scalars: List[float]
-    rhs_vectors: List[sparse.lil_matrix]
+    lhs_matrices: List[sparse.lil_matrix] = None
+    lhs_vectors: List[sparse.lil_matrix] = None
+    rhs_scalars: List[float] = None
+    rhs_vectors: List[sparse.lil_matrix] = None
 
     def __init__(self,
-                 lhs_matrices: List[sparse.lil_matrix],
+                 lhs_matrices: List[sparse.lil_matrix] = None,
                  rhs_vectors: List[sparse.lil_matrix] = None,
                  lhs_vectors: List[sparse.lil_matrix] = None,
                  rhs_scalars: List[float] = None):
+        # check whether constraints are empty
+        if lhs_matrices is None and rhs_vectors is None and lhs_vectors is None and rhs_scalars is None:
+            Constraints.__init__(self, 0)
+            return
+
         # initialize
+        assert lhs_matrices is not None
         nof_constraints = len(lhs_matrices)
         Constraints.__init__(self, nof_constraints)
         if self.nof_constraints == 0:
@@ -66,13 +72,17 @@ class SocpConstraints(Constraints):
             self.rhs_scalars = [0 for _ in range(self.nof_constraints)]
 
     def __add__(self, other):
+        if self.is_empty() and other.is_empty():
+            return self
+        if self.is_empty():
+            return other
+        if other.is_empty():
+            return self
+
         return SocpConstraints(self.lhs_matrices + other.lhs_matrices,
                                self.rhs_vectors + other.rhs_vectors,
                                self.lhs_vectors + other.lhs_vectors,
                                self.rhs_scalars + other.rhs_scalars)
-
-    def __iadd__(self, other):
-        return self + other
 
     def prepend_variable(self):
         for i in range(self.nof_constraints):

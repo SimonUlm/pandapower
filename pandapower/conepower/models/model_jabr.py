@@ -25,6 +25,9 @@ class ModelJabr:
     variable_sets: Dict[VariableType, VariableSet]
 
     def __init__(self):
+        self.jabr_constraints = SocpConstraints()
+        self.line_apparent_power_constraints = SocpConstraints()
+        self.power_flow_equalities = LinearConstraints()
         self.nof_variables = 0
         self.variable_sets = {}
 
