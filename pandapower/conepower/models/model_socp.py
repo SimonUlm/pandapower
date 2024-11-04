@@ -122,11 +122,11 @@ class ModelSocp:
         socp.cost = jabr.cost.scale(SCALING)
 
         # linear equality constraints
-        socp.linear_equality_constraints = jabr.power_flow_equalities
+        socp.linear_equality_constraints = jabr.power_flow_equalities.scaled()
 
         # linear inequality constraints
         socp._box_to_linear_constraints(jabr)
-        socp.linear_inequality_constraints += jabr.line_current_constraints
+        socp.linear_inequality_constraints += jabr.line_current_constraints.scaled()
 
         # socp constraints
         socp.socp_constraints = jabr.jabr_constraints

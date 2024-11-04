@@ -40,6 +40,14 @@ class LinearConstraints(Constraints):
         self.matrix = sparse.hstack((sparse.csr_matrix((self.matrix.shape[0], 1), dtype=float), self.matrix),
                                     format='csr')
 
+    def scaled(self):
+        if self.is_empty():
+            return self
+        row_wise_norms = np.sqrt(self.matrix.multiply(self.matrix).sum(axis=1))
+        scaled_matrix = self.matrix.multiply(sparse.csr_matrix(1 / row_wise_norms))
+        scaled_rhs = np.divide(self.rhs, np.squeeze(np.asarray(row_wise_norms)))
+        return LinearConstraints(scaled_matrix, scaled_rhs)
+
     def to_cone_formulation(self) -> Tuple[sparse.coo_matrix, np.ndarray, int]:
         matrix = self.matrix.tocoo()
         vector = self.rhs
