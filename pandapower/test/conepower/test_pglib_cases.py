@@ -14,7 +14,13 @@ REL_ERROR_TOL = 1e-6
 def assert_is_close_to_pm_result(filename, pm_result: float):
     file = os.path.join(FOLDER, filename)
     net = pp.converter.from_mpc(file)
-    pp.runconvopp(net, check_connectivity=True, suppress_warnings=False, enforce_ext_grid_vm=False)
+    pp.runconvopp(net,
+                  calculate_voltage_angles=True,
+                  check_connectivity=True,
+                  suppress_warnings=False,
+                  relaxation='jabr',
+                  enforce_ext_grid_vm=False,
+                  flow_limit='S')
     rel_error = abs(net['res_cost'] - pm_result) / abs(pm_result)
     with open(LOG_OUT, 'a') as log_file:
         log_file.write(filename + ": " + str(rel_error) + "\n")
