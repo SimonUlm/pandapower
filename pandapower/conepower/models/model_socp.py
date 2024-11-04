@@ -14,6 +14,7 @@ from pandapower.conepower.types.variable_type import VariableType
 
 
 SCALING = 1e-4  # same as in PIPS
+SILENT = True   # cvxopt default: False
 MAXITERS = 300  # cvxopt default: 300
 ABSTOL = 1e-9   # cvxopt default: 1e-7
 RELTOL = 1e-8   # cvxopt default: 1e-6
@@ -165,6 +166,7 @@ class ModelSocp:
         # initial values
         # TODO: Initial values für Slack und Socp werden auch genötigt.
 
+        solvers.options['show_progress'] = not SILENT
         solvers.options['maxiters'] = MAXITERS
         solvers.options['abstol'] = ABSTOL
         solvers.options['reltol'] = RELTOL
