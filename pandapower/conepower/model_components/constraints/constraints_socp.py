@@ -96,6 +96,24 @@ class SocpConstraints(Constraints):
             self.rhs_vectors[i] = sparse.vstack((sparse.csr_matrix((1, 1), dtype=float), vector),
                                                  format='lil')
 
+    def scaled(self):
+        if self.is_empty():
+            return self
+        scaled_lhs_matrices = []
+        scaled_rhs_vectors = []
+        scaled_lhs_vectors = []
+        scaled_rhs_scalars = []
+        for i in range(self.nof_constraints):
+            frobenius_norm = sparse.linalg.norm(self.lhs_matrices[i])
+            scaled_lhs_matrices.append(self.lhs_matrices[i] / frobenius_norm)
+            scaled_rhs_vectors.append(self.rhs_vectors[i] / frobenius_norm)
+            scaled_lhs_vectors.append(self.lhs_vectors[i] / frobenius_norm)
+            scaled_rhs_scalars.append(self.rhs_scalars[i] / frobenius_norm)
+        return SocpConstraints(lhs_matrices=scaled_lhs_matrices,
+                               rhs_vectors=scaled_rhs_vectors,
+                               lhs_vectors=scaled_lhs_vectors,
+                               rhs_scalars=scaled_rhs_scalars)
+
     def to_cone_formulation(self) -> Tuple[sparse.coo_matrix, np.ndarray, List[int]]:
         matrix = -sparse.vstack([sparse.vstack((self.rhs_vectors[i].transpose(),
                                                 self.lhs_matrices[i])) for i in range(self.nof_constraints)],

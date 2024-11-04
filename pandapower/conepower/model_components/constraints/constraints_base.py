@@ -23,6 +23,10 @@ class Constraints(ABC):
         pass
 
     @abstractmethod
+    def scaled(self):
+        pass
+
+    @abstractmethod
     def to_cone_formulation(self) -> Tuple[sparse.coo_matrix, np.ndarray, int]:
         pass
 

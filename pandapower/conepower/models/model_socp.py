@@ -14,9 +14,9 @@ from pandapower.conepower.types.variable_type import VariableType
 
 
 SCALING = 1e-4  # same as in PIPS
-MAXITERS = 100  # cvxopt default: 300
-ABSTOL = 1e-7   # cvxopt default: 1e-7
-RELTOL = 1e-6   # cvxopt default: 1e-6
+MAXITERS = 300  # cvxopt default: 300
+ABSTOL = 1e-9   # cvxopt default: 1e-7
+RELTOL = 1e-8   # cvxopt default: 1e-6
 FEASTOL = 1e-7  # cvxopt default: 1e-7
 
 
@@ -91,7 +91,7 @@ class ModelSocp:
         self.socp_constraints.prepend_variable()
 
         # add socp constraints that replace the quadratic cost function
-        self.socp_constraints += self.cost.to_socp_constraints()
+        self.socp_constraints += self.cost.to_socp_constraints().scaled()
 
         # replace quadratic cost function by linear function that only depends on auxiliary variable
         linear_cost = np.empty(self.nof_variables, dtype=float)
@@ -129,8 +129,8 @@ class ModelSocp:
         socp.linear_inequality_constraints += jabr.line_current_constraints.scaled()
 
         # socp constraints
-        socp.socp_constraints = jabr.jabr_constraints
-        socp.socp_constraints += jabr.line_apparent_power_constraints
+        socp.socp_constraints = jabr.jabr_constraints.scaled()
+        socp.socp_constraints += jabr.line_apparent_power_constraints.scaled()
 
         # transform into linear socp
         if not socp.cost.is_linear():
