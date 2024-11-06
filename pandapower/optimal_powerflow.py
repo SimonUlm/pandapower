@@ -65,18 +65,18 @@ def _optimal_powerflow(net, verbose, suppress_warnings, **kwargs):
     relaxation = net["_options"]["relaxation"]
     flow_limit = net["_options"]["flow_limit"]
     if relaxation is None:
-        def routine(_ppci, _ppopt, _relaxation, _flow_limit): return opf(_ppci, _ppopt)
+        def routine(_ppci): return opf(_ppci, ppopt)
     else:
-        def routine(_ppci, _ppopt, _relaxation, _flow_limit): return conv_opf(_ppci, _ppopt, _relaxation, _flow_limit)
+        def routine(_ppci): return conv_opf(_ppci, ppopt, relaxation, flow_limit, **kwargs)
 
     if init == "pf":
         ppci = _run_pf_before_opf(net, ppci)
     if suppress_warnings:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            result = routine(ppci, ppopt, relaxation, flow_limit)
+            result = routine(ppci)
     else:
-        result = routine(ppci, ppopt, relaxation, flow_limit)
+        result = routine(ppci)
     #    net["_ppc_opf"] = result
 
     if verbose:

@@ -19,7 +19,7 @@ from pandapower.pypower.opf_args import opf_args2
 from pandapower.pypower.opf_setup import opf_setup
 
 
-def conv_opf(ppc, ppopt, relaxation_str, flow_limit_str):
+def conv_opf(ppc, ppopt, relaxation_str, flow_limit_str, **kwargs):
     # initialize
     t0 = perf_counter()
 
@@ -68,16 +68,18 @@ def conv_opf(ppc, ppopt, relaxation_str, flow_limit_str):
     else:
         assert False
 
-    # finish preparing output
     et = perf_counter() - t0
 
-    result = ppc
+    # prepare optional output
+    output = kwargs.get('output', {})
+    assert isinstance(output, dict)
+    assert len(output) == 0
 
     # calculate error and recover solution
     if relaxation_type is RelaxationType.JABR:
         jabr.set_values(resulting_variables)
         error = jabr.calculate_jabr_infeasibility()
-        print('SOCP infeasibility: ' + str(error))
+        output['relaxation_error'] = error
         variable_sets, variables = jabr.to_opf_variables()
         #np.copyto(model.values, variables)  # TODO: Refactor
         result = postprocess(ppc=ppc,
