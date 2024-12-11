@@ -42,7 +42,7 @@ class InverterControlMode(Enum):
         if self is self.ZERO_Q:
             return 0.
         elif self is self.CONST_PHI:
-            return 0.1
+            return 0.44  # power factor of 0.9
         else:
             assert False
 
@@ -89,7 +89,6 @@ def lv_grid_to_pf(net: pp.pandapowerNet,
     trafo = net['trafo'].copy()
 
     # extract load case
-    # TODO: Profiles verwenden, um weitere Fälle zu erstellen
     p_gen_scaling, p_load_scaling, q_load_scaling = _get_scaling(loadcases, study_case)
 
     # sgen
@@ -99,7 +98,7 @@ def lv_grid_to_pf(net: pp.pandapowerNet,
     load['p_mw'] *= p_load_scaling
     load['q_mvar'] *= q_load_scaling
     # ext grid
-    ext_grid['vm_pu'] = 1
+    ext_grid['vm_pu'] = REF_BUS_VM
 
     # create new net
     pf_net = create_empty_network()
@@ -133,7 +132,6 @@ def lv_grid_to_opf(net: pp.pandapowerNet,
     trafo = net['trafo'].copy()
 
     # extract load case
-    # TODO: Profiles verwenden, um weitere Fälle zu erstellen
     p_gen_scaling, p_load_scaling, q_load_scaling = _get_scaling(loadcases, study_case)
 
     # modify data
@@ -152,12 +150,6 @@ def lv_grid_to_opf(net: pp.pandapowerNet,
     # load
     load['p_mw'] *= p_load_scaling
     load['q_mvar'] *= q_load_scaling
-    # trafo
-    # trafo = trafo.assign(pfe_kw=0.0)
-    # TODO: Überlege, ob man das wieder rausnehmen sollte, das beeinflusst die charging conductance!
-    #       Evtl. sollte man einen verlustfreien Transformer annehmen.
-    # ext grid
-    ext_grid['vm_pu'] = 1
 
     # create new net and add cost
     opf_net = create_empty_network()
@@ -173,11 +165,6 @@ def lv_grid_to_opf(net: pp.pandapowerNet,
     pp.create_poly_cost(opf_net,
                         element=0,
                         et='ext_grid',
-                        cp1_eur_per_mw=COST_FACTOR * 1)
-    #for i in range(opf_net['gen'].shape[0]):
-    #    pp.create_poly_cost(opf_net,
-    #                        element=i,
-    #                        et='gen',
-    #                        cp1_eur_per_mw=COST_FACTOR * 0.001)
+                        cp1_eur_per_mw=COST_FACTOR)
 
     return opf_net
