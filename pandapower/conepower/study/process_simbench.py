@@ -36,13 +36,16 @@ class StudyCase(Enum):
 class InverterControlMode(Enum):
     UNDEFINED = 0
     ZERO_Q = 1
-    CONST_PHI = 2
+    PF_95 = 2
+    PF_90 = 3
 
     def get_factor(self) -> float:
         if self is self.ZERO_Q:
             return 0.
-        elif self is self.CONST_PHI:
-            return 0.44  # power factor of 0.9
+        elif self is self.PF_95:
+            return 0.31
+        elif self is self.PF_90:
+            return 0.44
         else:
             assert False
 

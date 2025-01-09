@@ -14,13 +14,13 @@ EXACTNESS_OUTPUT_FILE_1 = "../../../../../Documents/Thesis/tables/exactness_1.te
 EXACTNESS_OUTPUT_FILE_2 = "../../../../../Documents/Thesis/tables/exactness_2.tex"
 
 
-def format_float(x: float) -> str:
+def _format_float(x: float) -> str:
     if isinstance(x, float):
         return f"{x: .2e}"
     return str(x)
 
 
-def format_names(df: pd.DataFrame) -> pd.DataFrame:
+def _format_names(df: pd.DataFrame) -> pd.DataFrame:
     formatted_names = []
     previous_name = None
     for name in df['Grid']:
@@ -116,7 +116,7 @@ if len(relaxation_errors) > 0 and len(optimality_gaps) > 0:
                 + inter_values[:inter_len // 2])
     data_1 = dict(zip(keys_1, values_1))
     frame_1 = pd.DataFrame(data_1)
-    latex_table_1 = format_names(frame_1.map(format_float)).to_latex(index=False)
+    latex_table_1 = _format_names(frame_1.map(_format_float)).to_latex(index=False)
     with open(EXACTNESS_OUTPUT_FILE_1, 'w') as file:
         file.write(latex_table_1)
     # table 2
@@ -127,6 +127,6 @@ if len(relaxation_errors) > 0 and len(optimality_gaps) > 0:
                 + inter_values[inter_len // 2:])
     data_2 = dict(zip(keys_2, values_2))
     frame_2 = pd.DataFrame(data_2)
-    latex_table_2 = format_names(frame_2.map(format_float)).to_latex(index=False)
+    latex_table_2 = _format_names(frame_2.map(_format_float)).to_latex(index=False)
     with open(EXACTNESS_OUTPUT_FILE_2, 'w') as file:
         file.write(latex_table_2)
